@@ -8,6 +8,7 @@ interface GenerativeCanvasProps {
   config: AnomalyConfig;
   onCanvasTouch?: (normalizedX: number, normalizedY: number) => void;
   onCanvasPan?: (normalizedX: number, normalizedY: number) => void;
+  onParticleEvent?: (pitchRatio: number, intensity: number) => void;
   canvasRefOut?: React.MutableRefObject<HTMLCanvasElement | null>;
 }
 
@@ -28,6 +29,7 @@ export const GenerativeCanvas: React.FC<GenerativeCanvasProps> = ({
   config,
   onCanvasTouch,
   onCanvasPan,
+  onParticleEvent,
   canvasRefOut,
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -36,7 +38,6 @@ export const GenerativeCanvas: React.FC<GenerativeCanvasProps> = ({
   useEffect(() => {
     if (!containerRef.current) return;
 
-    // Destroy existing instance
     if (p5InstanceRef.current) {
       p5InstanceRef.current.remove();
     }
@@ -84,13 +85,11 @@ export const GenerativeCanvas: React.FC<GenerativeCanvasProps> = ({
 
         p.colorMode(p.HSL);
 
-        // Initialize particle stream
         particles = [];
         for (let i = 0; i < config.particles.count; i++) {
           particles.push(createParticle());
         }
 
-        // Draw initial dark background
         p.background(
           config.colors.bgHSLA.h,
           config.colors.bgHSLA.s,
@@ -99,13 +98,11 @@ export const GenerativeCanvas: React.FC<GenerativeCanvasProps> = ({
       };
 
       p.draw = () => {
-        // Semi-transparent background overlay for smooth light trails
         const bg = config.colors.bgHSLA;
         p.fill(bg.h, bg.s, bg.l, config.particles.trailFade / 255);
         p.noStroke();
         p.rect(0, 0, p.width, p.height);
 
-        // Blend mode
         if (config.colors.blendMode === "screen") {
           p.blendMode(p.SCREEN);
         } else if (config.colors.blendMode === "additive") {
@@ -122,11 +119,9 @@ export const GenerativeCanvas: React.FC<GenerativeCanvasProps> = ({
           onCanvasPan(ptrX / p.width, ptrY / p.height);
         }
 
-        // Particle updates
         for (let i = 0; i < particles.length; i++) {
           const pt = particles[i];
 
-          // Perlin noise flow perturbation
           const noiseScale = config.particles.turbulence;
           const noiseVal = p.noise(pt.x * noiseScale, pt.y * noiseScale, p.frameCount * 0.005);
           const noiseAngle = noiseVal * p.TWO_PI * 2;
@@ -134,7 +129,6 @@ export const GenerativeCanvas: React.FC<GenerativeCanvasProps> = ({
           let forceX = Math.cos(noiseAngle) * 0.4 + config.particles.gravity.x;
           let forceY = Math.sin(noiseAngle) * 0.4 + config.particles.gravity.y;
 
-          // Touch / Mouse interaction force
           if (isPointerActive) {
             const dx = ptrX - pt.x;
             const dy = ptrY - pt.y;
@@ -177,14 +171,18 @@ export const GenerativeCanvas: React.FC<GenerativeCanvasProps> = ({
           pt.rotation += pt.rotSpeed;
           pt.pulsePhase += 0.03;
 
-          // Screen wrapping / recycling
+          // Check for screen boundary wrap or center pass events to play soft chimes
           if (
             pt.x < -100 ||
             pt.x > p.width + 100 ||
             pt.y < -100 ||
             pt.y > p.height + 100
           ) {
-            // Respawn along top or left depending on angle
+            if (onParticleEvent) {
+              const pitchRatio = (pt.x + pt.y) / (p.width + p.height);
+              onParticleEvent(pitchRatio, 1.0);
+            }
+
             if (baseDx >= 0 && baseDy >= 0) {
               if (p.random(1) > 0.5) {
                 pt.x = p.random(-40, p.width * 0.5);
@@ -199,7 +197,6 @@ export const GenerativeCanvas: React.FC<GenerativeCanvasProps> = ({
             }
           }
 
-          // Render triangle
           p.push();
           p.translate(pt.x, pt.y);
           p.rotate(pt.rotation);
@@ -216,7 +213,6 @@ export const GenerativeCanvas: React.FC<GenerativeCanvasProps> = ({
             p.noStroke();
           }
 
-          // Draw isosceles triangle pointing along movement
           const h = currentSize * 0.866;
           p.triangle(
             0,
@@ -246,8 +242,6 @@ export const GenerativeCanvas: React.FC<GenerativeCanvasProps> = ({
         }
       };
 
-      // Handled via mousePressed / touch event bindings
-
       p.windowResized = () => {
         if (containerRef.current) {
           p.resizeCanvas(
@@ -265,7 +259,7 @@ export const GenerativeCanvas: React.FC<GenerativeCanvasProps> = ({
         p5InstanceRef.current.remove();
       }
     };
-  }, [config, onCanvasTouch, onCanvasPan, canvasRefOut]);
+  }, [config, onCanvasTouch, onCanvasPan, onParticleEvent, canvasRefOut]);
 
   return <div ref={containerRef} className="absolute inset-0 w-full h-full touch-none select-none overflow-hidden" />;
 };

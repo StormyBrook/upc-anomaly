@@ -20,13 +20,12 @@ import {
 } from "lucide-react";
 import confetti from "canvas-confetti";
 
-// Dynamically import GenerativeCanvas to avoid SSR p5 canvas issues
 const GenerativeCanvas = dynamic(
   () => import("@/components/GenerativeCanvas").then((mod) => mod.GenerativeCanvas),
   { ssr: false }
 );
 
-const DEFAULT_UPC = "042600000008"; // Standard default barcode string
+const DEFAULT_UPC = "042600000008";
 
 export default function Home() {
   const [upc, setUpc] = useState<string>(DEFAULT_UPC);
@@ -42,7 +41,6 @@ export default function Home() {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const audioEngineRef = useRef<AudioEngine | null>(null);
 
-  // Initialize audio engine instance
   useEffect(() => {
     audioEngineRef.current = new AudioEngine();
     return () => {
@@ -50,7 +48,6 @@ export default function Home() {
     };
   }, []);
 
-  // Update product name lookup when UPC changes
   const fetchProductMetadata = useCallback(async (code: string) => {
     setIsLookupLoading(true);
     try {
@@ -72,7 +69,6 @@ export default function Home() {
     }
   }, []);
 
-  // Trigger UPC change
   const handleUPCChange = useCallback(
     (newUPC: string) => {
       const cleanUPC = newUPC.trim();
@@ -81,13 +77,12 @@ export default function Home() {
       const newConfig = parseUPCToConfig(cleanUPC);
       setConfig(newConfig);
 
-      if (audioEngineRef.current && !isMuted) {
+      if (audioEngineRef.current) {
         audioEngineRef.current.updateConfig(newConfig);
       }
 
       fetchProductMetadata(cleanUPC);
 
-      // Trigger celebrate particle effect
       try {
         confetti({
           particleCount: 25,
@@ -99,25 +94,19 @@ export default function Home() {
           ],
         });
       } catch {
-        // Ignore if confetti not supported
+        // Ignore if confetti fails
       }
     },
-    [isMuted, fetchProductMetadata]
+    [fetchProductMetadata]
   );
 
   useEffect(() => {
     fetchProductMetadata(DEFAULT_UPC);
   }, [fetchProductMetadata]);
 
-  // Canvas interaction callbacks
+  // Canvas interaction callbacks - Strictly respects mute state
   const handleCanvasTouch = (nx: number, ny: number) => {
-    if (audioEngineRef.current) {
-      if (isMuted) {
-        audioEngineRef.current.init();
-        const unmuted = audioEngineRef.current.toggleMute();
-        setIsMuted(unmuted);
-        audioEngineRef.current.updateConfig(config);
-      }
+    if (audioEngineRef.current && !isMuted) {
       audioEngineRef.current.triggerTouchTone(nx, ny);
     }
   };
@@ -128,10 +117,15 @@ export default function Home() {
     }
   };
 
+  const handleParticleEvent = (pitchRatio: number, intensity: number) => {
+    if (audioEngineRef.current && !isMuted) {
+      audioEngineRef.current.triggerParticleChime(pitchRatio, intensity);
+    }
+  };
+
   // Toggle audio
   const toggleAudio = () => {
     if (!audioEngineRef.current) return;
-    audioEngineRef.current.init();
     const muted = audioEngineRef.current.toggleMute();
     setIsMuted(muted);
     if (!muted) {
@@ -139,7 +133,6 @@ export default function Home() {
     }
   };
 
-  // Capture canvas screenshot download
   const handleDownloadImage = () => {
     if (!canvasRef.current) return;
     const link = document.createElement("a");
@@ -159,15 +152,14 @@ export default function Home() {
 
   return (
     <main className="relative w-screen h-screen overflow-hidden bg-black font-sans">
-      {/* Background p5 Generative Artwork Canvas */}
       <GenerativeCanvas
         config={config}
         onCanvasTouch={handleCanvasTouch}
         onCanvasPan={handleCanvasPan}
+        onParticleEvent={handleParticleEvent}
         canvasRefOut={canvasRef}
       />
 
-      {/* Top Header Bar */}
       <header
         className="fixed top-0 left-0 right-0 z-50 flex items-center justify-between p-4 md:p-6 pointer-events-none"
         style={{
@@ -188,7 +180,6 @@ export default function Home() {
           </div>
         </div>
 
-        {/* Audio Synth Toggle & Actions */}
         <div className="flex items-center space-x-2 pointer-events-auto">
           <button
             onClick={toggleAudio}
@@ -197,7 +188,7 @@ export default function Home() {
                 ? "bg-cyan-500/20 border-cyan-400 text-cyan-300 shadow-cyan-500/20"
                 : "bg-zinc-900/90 border-zinc-700/60 text-zinc-400 hover:text-zinc-200"
             }`}
-            title={isMuted ? "Unmute Ambient Synthesizer" : "Mute Sound"}
+            title={isMuted ? "Unmute Ambient Chimes" : "Mute Sound"}
           >
             {!isMuted ? <Volume2 className="w-5 h-5 animate-pulse" /> : <VolumeX className="w-5 h-5" />}
           </button>
@@ -212,7 +203,6 @@ export default function Home() {
         </div>
       </header>
 
-      {/* Center Floating Banner - Product / Anomaly Name */}
       <div className="fixed top-20 left-1/2 -translate-x-1/2 z-40 w-11/12 max-w-lg pointer-events-none">
         <div className="bg-zinc-950/90 border border-zinc-800/90 backdrop-blur-xl rounded-2xl p-4 shadow-2xl text-center pointer-events-auto transition-all duration-300 hover:border-zinc-700">
           <div className="flex items-center justify-center space-x-2 text-[10px] font-mono uppercase tracking-widest text-cyan-400 mb-1">
@@ -237,9 +227,7 @@ export default function Home() {
         </div>
       </div>
 
-      {/* Bottom Control Bar with High Contrast Z-Index */}
       <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 flex flex-col items-center space-y-3 w-full max-w-sm px-4">
-        {/* Main Camera Scan Button */}
         <button
           onClick={() => setIsScannerOpen(true)}
           style={{
@@ -253,7 +241,6 @@ export default function Home() {
           <span>SCAN UPC BARCODE</span>
         </button>
 
-        {/* Action Row: Manual Entry & Parameter Inspector Toggle */}
         <div className="flex items-center space-x-2 w-full justify-center">
           <button
             onClick={() => setShowManualInput(!showManualInput)}
@@ -273,7 +260,6 @@ export default function Home() {
           </button>
         </div>
 
-        {/* Manual UPC Input Drawer */}
         {showManualInput && (
           <form
             onSubmit={handleManualSubmit}
@@ -297,7 +283,6 @@ export default function Home() {
         )}
       </div>
 
-      {/* Parameter Details Drawer */}
       {isDetailsOpen && (
         <div className="fixed bottom-32 left-1/2 -translate-x-1/2 z-50 w-11/12 max-w-md bg-zinc-950/95 border border-zinc-800 backdrop-blur-2xl rounded-2xl p-5 shadow-2xl text-xs font-mono text-zinc-300 animate-in fade-in slide-in-from-bottom-4 duration-200">
           <div className="flex items-center justify-between border-b border-zinc-800 pb-2 mb-3">
@@ -345,7 +330,6 @@ export default function Home() {
         </div>
       )}
 
-      {/* Barcode Camera Scanner Modal */}
       <ScannerModal
         isOpen={isScannerOpen}
         onClose={() => setIsScannerOpen(false)}
