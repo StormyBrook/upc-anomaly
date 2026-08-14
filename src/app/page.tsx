@@ -6,7 +6,6 @@ import { parseUPCToConfig, AnomalyConfig } from "@/lib/upcEngine";
 import { AudioEngine } from "@/lib/audioEngine";
 import { ScannerModal } from "@/components/ScannerModal";
 import {
-  Scan,
   Volume2,
   VolumeX,
   Camera,
@@ -17,6 +16,7 @@ import {
   ChevronUp,
   ChevronDown,
   Globe,
+  Key,
 } from "lucide-react";
 import confetti from "canvas-confetti";
 
@@ -30,6 +30,8 @@ const DEFAULT_UPC = "042600000008"; // Standard default barcode string
 
 export default function Home() {
   const [upc, setUpc] = useState<string>(DEFAULT_UPC);
+  const [inputUpc, setInputUpc] = useState<string>("");
+  const [showManualInput, setShowManualInput] = useState<boolean>(false);
   const [config, setConfig] = useState<AnomalyConfig>(() => parseUPCToConfig(DEFAULT_UPC));
   const [isScannerOpen, setIsScannerOpen] = useState<boolean>(false);
   const [isMuted, setIsMuted] = useState<boolean>(true);
@@ -74,6 +76,7 @@ export default function Home() {
   const handleUPCChange = useCallback(
     (newUPC: string) => {
       const cleanUPC = newUPC.trim();
+      if (!cleanUPC) return;
       setUpc(cleanUPC);
       const newConfig = parseUPCToConfig(cleanUPC);
       setConfig(newConfig);
@@ -85,15 +88,19 @@ export default function Home() {
       fetchProductMetadata(cleanUPC);
 
       // Trigger celebrate particle effect
-      confetti({
-        particleCount: 25,
-        spread: 60,
-        origin: { y: 0.8 },
-        colors: [
-          `hsl(${newConfig.colors.primary.h}, 80%, 60%)`,
-          `hsl(${newConfig.colors.secondary.h}, 80%, 60%)`,
-        ],
-      });
+      try {
+        confetti({
+          particleCount: 25,
+          spread: 60,
+          origin: { y: 0.8 },
+          colors: [
+            `hsl(${newConfig.colors.primary.h}, 80%, 60%)`,
+            `hsl(${newConfig.colors.secondary.h}, 80%, 60%)`,
+          ],
+        });
+      } catch {
+        // Ignore if confetti not supported
+      }
     },
     [isMuted, fetchProductMetadata]
   );
@@ -141,6 +148,15 @@ export default function Home() {
     link.click();
   };
 
+  const handleManualSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (inputUpc.trim()) {
+      handleUPCChange(inputUpc);
+      setInputUpc("");
+      setShowManualInput(false);
+    }
+  };
+
   return (
     <main className="relative w-screen h-screen overflow-hidden bg-black font-sans">
       {/* Background p5 Generative Artwork Canvas */}
@@ -152,9 +168,14 @@ export default function Home() {
       />
 
       {/* Top Header Bar */}
-      <header className="absolute top-0 left-0 right-0 z-20 flex items-center justify-between p-4 md:p-6 bg-gradient-to-b from-black/80 via-black/40 to-transparent pointer-events-none">
+      <header
+        className="fixed top-0 left-0 right-0 z-50 flex items-center justify-between p-4 md:p-6 pointer-events-none"
+        style={{
+          background: "linear-gradient(to bottom, rgba(0,0,0,0.85), rgba(0,0,0,0.4), transparent)",
+        }}
+      >
         <div className="flex items-center space-x-3 pointer-events-auto">
-          <div className="p-2 rounded-xl bg-zinc-900/80 border border-zinc-700/50 backdrop-blur-md shadow-lg flex items-center justify-center text-cyan-400">
+          <div className="p-2 rounded-xl bg-zinc-900/90 border border-zinc-700/60 backdrop-blur-md shadow-lg flex items-center justify-center text-cyan-400">
             <Sparkles className="w-5 h-5 animate-pulse" />
           </div>
           <div>
@@ -174,7 +195,7 @@ export default function Home() {
             className={`p-3 rounded-full border backdrop-blur-md transition-all duration-300 flex items-center justify-center shadow-lg ${
               !isMuted
                 ? "bg-cyan-500/20 border-cyan-400 text-cyan-300 shadow-cyan-500/20"
-                : "bg-zinc-900/80 border-zinc-700/60 text-zinc-400 hover:text-zinc-200"
+                : "bg-zinc-900/90 border-zinc-700/60 text-zinc-400 hover:text-zinc-200"
             }`}
             title={isMuted ? "Unmute Ambient Synthesizer" : "Mute Sound"}
           >
@@ -183,7 +204,7 @@ export default function Home() {
 
           <button
             onClick={handleDownloadImage}
-            className="p-3 rounded-full bg-zinc-900/80 border border-zinc-700/60 text-zinc-300 hover:text-white backdrop-blur-md transition-all shadow-lg hover:bg-zinc-800"
+            className="p-3 rounded-full bg-zinc-900/90 border border-zinc-700/60 text-zinc-300 hover:text-white backdrop-blur-md transition-all shadow-lg hover:bg-zinc-800"
             title="Download PNG Frame"
           >
             <Download className="w-5 h-5" />
@@ -192,8 +213,8 @@ export default function Home() {
       </header>
 
       {/* Center Floating Banner - Product / Anomaly Name */}
-      <div className="absolute top-20 left-1/2 -translate-x-1/2 z-20 w-11/12 max-w-lg pointer-events-none">
-        <div className="bg-zinc-950/75 border border-zinc-800/80 backdrop-blur-xl rounded-2xl p-4 shadow-2xl text-center pointer-events-auto transition-all duration-300 hover:border-zinc-700">
+      <div className="fixed top-20 left-1/2 -translate-x-1/2 z-40 w-11/12 max-w-lg pointer-events-none">
+        <div className="bg-zinc-950/90 border border-zinc-800/90 backdrop-blur-xl rounded-2xl p-4 shadow-2xl text-center pointer-events-auto transition-all duration-300 hover:border-zinc-700">
           <div className="flex items-center justify-center space-x-2 text-[10px] font-mono uppercase tracking-widest text-cyan-400 mb-1">
             <Globe className="w-3.5 h-3.5" />
             <span>
@@ -216,30 +237,69 @@ export default function Home() {
         </div>
       </div>
 
-      {/* Bottom Floating Control Bar */}
-      <div className="absolute bottom-6 left-1/2 -translate-x-1/2 z-20 flex flex-col items-center space-y-3 w-full max-w-sm px-4">
+      {/* Bottom Control Bar with High Contrast Z-Index */}
+      <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 flex flex-col items-center space-y-3 w-full max-w-sm px-4">
+        {/* Main Camera Scan Button */}
         <button
           onClick={() => setIsScannerOpen(true)}
-          className="w-full py-4 px-6 rounded-2xl bg-gradient-to-r from-cyan-500 to-indigo-600 hover:from-cyan-400 hover:to-indigo-500 text-black font-mono font-bold text-sm tracking-wider uppercase shadow-xl shadow-cyan-500/25 flex items-center justify-center space-x-3 transition-all transform active:scale-95"
+          style={{
+            background: "linear-gradient(135deg, #06b6d4, #4f46e5)",
+            color: "#000000",
+            boxShadow: "0 10px 25px -5px rgba(6, 182, 212, 0.4)",
+          }}
+          className="w-full py-4 px-6 rounded-2xl font-mono font-bold text-sm tracking-wider uppercase flex items-center justify-center space-x-3 transition-all transform active:scale-95 cursor-pointer hover:brightness-110"
         >
-          <Camera className="w-5 h-5" />
+          <Camera className="w-5 h-5 text-black" />
           <span>SCAN UPC BARCODE</span>
         </button>
 
-        {/* Expand Details Toggle Button */}
-        <button
-          onClick={() => setIsDetailsOpen(!isDetailsOpen)}
-          className="flex items-center space-x-2 px-4 py-2 rounded-full bg-zinc-950/80 border border-zinc-800 backdrop-blur-md text-xs font-mono text-zinc-400 hover:text-zinc-200 transition-colors"
-        >
-          <Sliders className="w-3.5 h-3.5" />
-          <span>INSPECT GENERATIVE PARAMETERS</span>
-          {isDetailsOpen ? <ChevronDown className="w-3.5 h-3.5" /> : <ChevronUp className="w-3.5 h-3.5" />}
-        </button>
+        {/* Action Row: Manual Entry & Parameter Inspector Toggle */}
+        <div className="flex items-center space-x-2 w-full justify-center">
+          <button
+            onClick={() => setShowManualInput(!showManualInput)}
+            className="flex items-center space-x-1.5 px-3 py-2 rounded-xl bg-zinc-950/90 border border-zinc-800 backdrop-blur-md text-xs font-mono text-zinc-300 hover:text-white transition-colors cursor-pointer"
+          >
+            <Key className="w-3.5 h-3.5 text-cyan-400" />
+            <span>ENTER CODE</span>
+          </button>
+
+          <button
+            onClick={() => setIsDetailsOpen(!isDetailsOpen)}
+            className="flex items-center space-x-1.5 px-3 py-2 rounded-xl bg-zinc-950/90 border border-zinc-800 backdrop-blur-md text-xs font-mono text-zinc-300 hover:text-white transition-colors cursor-pointer"
+          >
+            <Sliders className="w-3.5 h-3.5 text-indigo-400" />
+            <span>SPECS</span>
+            {isDetailsOpen ? <ChevronDown className="w-3.5 h-3.5" /> : <ChevronUp className="w-3.5 h-3.5" />}
+          </button>
+        </div>
+
+        {/* Manual UPC Input Drawer */}
+        {showManualInput && (
+          <form
+            onSubmit={handleManualSubmit}
+            className="w-full bg-zinc-950/95 border border-zinc-800 rounded-xl p-3 backdrop-blur-2xl flex items-center space-x-2 animate-in fade-in duration-200"
+          >
+            <input
+              type="text"
+              value={inputUpc}
+              onChange={(e) => setInputUpc(e.target.value)}
+              placeholder="e.g. 012000000133"
+              className="flex-1 bg-zinc-900 border border-zinc-700/80 rounded-lg px-3 py-1.5 text-xs font-mono text-white placeholder-zinc-500 focus:outline-none focus:border-cyan-400"
+              autoFocus
+            />
+            <button
+              type="submit"
+              className="px-3 py-1.5 bg-cyan-500 hover:bg-cyan-400 text-black font-mono text-xs font-bold rounded-lg transition-colors cursor-pointer"
+            >
+              LOAD
+            </button>
+          </form>
+        )}
       </div>
 
       {/* Parameter Details Drawer */}
       {isDetailsOpen && (
-        <div className="absolute bottom-28 left-1/2 -translate-x-1/2 z-20 w-11/12 max-w-md bg-zinc-950/90 border border-zinc-800/90 backdrop-blur-2xl rounded-2xl p-5 shadow-2xl text-xs font-mono text-zinc-300 animate-in fade-in slide-in-from-bottom-4 duration-200">
+        <div className="fixed bottom-32 left-1/2 -translate-x-1/2 z-50 w-11/12 max-w-md bg-zinc-950/95 border border-zinc-800 backdrop-blur-2xl rounded-2xl p-5 shadow-2xl text-xs font-mono text-zinc-300 animate-in fade-in slide-in-from-bottom-4 duration-200">
           <div className="flex items-center justify-between border-b border-zinc-800 pb-2 mb-3">
             <span className="text-cyan-400 font-bold uppercase tracking-wider flex items-center gap-1.5">
               <Info className="w-4 h-4" /> REVEALED ANOMALY SPECS
