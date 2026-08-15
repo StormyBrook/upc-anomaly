@@ -70,7 +70,8 @@ export const GenerativeCanvas: React.FC<GenerativeCanvasProps> = ({
 
       const anomalyShape = getUniformShape();
 
-      // Compute an off-screen spawning position when recycling particles during the animation loop
+      // Compute off-screen spawning position covering ALL source edges
+      // so diagonal streams spawn across the full canvas width and height
       const getOffscreenPosition = (): { x: number; y: number } => {
         const margin = 80;
         const w = p.width;
@@ -79,30 +80,18 @@ export const GenerativeCanvas: React.FC<GenerativeCanvasProps> = ({
         const vx = baseDx;
         const vy = baseDy;
 
-        if (Math.abs(vx) > Math.abs(vy)) {
-          if (vx >= 0) {
-            return {
-              x: -p.random(20, margin * 3),
-              y: p.random(-margin, h + margin),
-            };
-          } else {
-            return {
-              x: w + p.random(20, margin * 3),
-              y: p.random(-margin, h + margin),
-            };
-          }
+        const spawnFromHorizontalEdge = p.random(1) < (w / (w + h));
+
+        if (spawnFromHorizontalEdge) {
+          // Spawn along top or bottom edge depending on vertical direction
+          const py = vy >= 0 ? -p.random(10, margin * 2) : h + p.random(10, margin * 2);
+          const px = p.random(-margin, w + margin);
+          return { x: px, y: py };
         } else {
-          if (vy >= 0) {
-            return {
-              x: p.random(-margin, w + margin),
-              y: -p.random(20, margin * 3),
-            };
-          } else {
-            return {
-              x: p.random(-margin, w + margin),
-              y: h + p.random(20, margin * 3),
-            };
-          }
+          // Spawn along left or right edge depending on horizontal direction
+          const px = vx >= 0 ? -p.random(10, margin * 2) : w + p.random(10, margin * 2);
+          const py = p.random(-margin, h + margin);
+          return { x: px, y: py };
         }
       };
 
@@ -136,13 +125,10 @@ export const GenerativeCanvas: React.FC<GenerativeCanvasProps> = ({
           py = cY + Math.sin(rAngle) * initialDist;
         } else {
           if (isInitialSetup) {
-            // Pre-distribute particles across the entire viewable area on start
-            // so the anomaly appears already fully in motion
             const margin = 100;
             px = p.random(-margin, p.width + margin);
             py = p.random(-margin, p.height + margin);
           } else {
-            // When recycling during loop, spawn strictly offscreen
             const pos = getOffscreenPosition();
             px = pos.x;
             py = pos.y;
@@ -386,7 +372,7 @@ export const GenerativeCanvas: React.FC<GenerativeCanvasProps> = ({
             pt.x += pt.vx;
             pt.y += pt.vy;
 
-            // Screen boundary wrap: recycle particle back off-screen
+            // Screen boundary wrap: recycle particle back off-screen along source L-edges
             const margin = 120;
             if (
               pt.x < -margin ||
