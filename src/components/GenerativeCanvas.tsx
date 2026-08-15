@@ -70,41 +70,34 @@ export const GenerativeCanvas: React.FC<GenerativeCanvasProps> = ({
 
       const anomalyShape = getUniformShape();
 
-      // Helper to compute an off-screen spawning position based on flow angle/velocity
+      // Compute an off-screen spawning position when recycling particles during the animation loop
       const getOffscreenPosition = (): { x: number; y: number } => {
         const margin = 80;
         const w = p.width;
         const h = p.height;
 
-        // Base velocity vector determines entry side
         const vx = baseDx;
         const vy = baseDy;
 
         if (Math.abs(vx) > Math.abs(vy)) {
-          // Primarily horizontal movement
           if (vx >= 0) {
-            // Moving right -> spawn on left edge
             return {
               x: -p.random(20, margin * 3),
               y: p.random(-margin, h + margin),
             };
           } else {
-            // Moving left -> spawn on right edge
             return {
               x: w + p.random(20, margin * 3),
               y: p.random(-margin, h + margin),
             };
           }
         } else {
-          // Primarily vertical movement
           if (vy >= 0) {
-            // Moving down -> spawn on top edge
             return {
               x: p.random(-margin, w + margin),
               y: -p.random(20, margin * 3),
             };
           } else {
-            // Moving up -> spawn on bottom edge
             return {
               x: p.random(-margin, w + margin),
               y: h + p.random(20, margin * 3),
@@ -113,7 +106,7 @@ export const GenerativeCanvas: React.FC<GenerativeCanvasProps> = ({
         }
       };
 
-      const createParticle = (forceOffscreen = false): Particle => {
+      const createParticle = (isInitialSetup = false): Particle => {
         const sizeRand = Math.pow(p.random(0, 1), 2.8);
         const sz = config.particles.minSize + sizeRand * (config.particles.maxSize - config.particles.minSize);
         const rAngle = p.random(p.TWO_PI);
@@ -142,10 +135,18 @@ export const GenerativeCanvas: React.FC<GenerativeCanvasProps> = ({
           px = cX + Math.cos(rAngle) * initialDist;
           py = cY + Math.sin(rAngle) * initialDist;
         } else {
-          // Off-canvas stream spawning for directional flows
-          const pos = getOffscreenPosition();
-          px = pos.x;
-          py = pos.y;
+          if (isInitialSetup) {
+            // Pre-distribute particles across the entire viewable area on start
+            // so the anomaly appears already fully in motion
+            const margin = 100;
+            px = p.random(-margin, p.width + margin);
+            py = p.random(-margin, p.height + margin);
+          } else {
+            // When recycling during loop, spawn strictly offscreen
+            const pos = getOffscreenPosition();
+            px = pos.x;
+            py = pos.y;
+          }
         }
 
         return {
@@ -245,7 +246,7 @@ export const GenerativeCanvas: React.FC<GenerativeCanvasProps> = ({
 
         particles = [];
         for (let i = 0; i < config.particles.count; i++) {
-          particles.push(createParticle());
+          particles.push(createParticle(true));
         }
 
         p.background(
