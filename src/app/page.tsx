@@ -17,6 +17,9 @@ import {
   ChevronDown,
   Globe,
   Key,
+  Layers,
+  Compass,
+  Palette,
 } from "lucide-react";
 import confetti from "canvas-confetti";
 
@@ -33,7 +36,7 @@ export default function Home() {
   const [showManualInput, setShowManualInput] = useState<boolean>(false);
   const [config, setConfig] = useState<AnomalyConfig>(() => parseUPCToConfig(DEFAULT_UPC));
   const [isScannerOpen, setIsScannerOpen] = useState<boolean>(false);
-  const [isMuted, setIsMuted] = useState<boolean>(false); // Unmuted by default per user request
+  const [isMuted, setIsMuted] = useState<boolean>(false);
   const [isDetailsOpen, setIsDetailsOpen] = useState<boolean>(false);
   const [productName, setProductName] = useState<string | null>(null);
   const [isLookupLoading, setIsLookupLoading] = useState<boolean>(false);
@@ -41,7 +44,6 @@ export default function Home() {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const audioEngineRef = useRef<AudioEngine | null>(null);
 
-  // Initialize audio engine instance and unlock WebAudio on first gesture
   useEffect(() => {
     audioEngineRef.current = new AudioEngine();
     audioEngineRef.current.init();
@@ -226,12 +228,15 @@ export default function Home() {
             {productName || config.anomalyName}
           </h2>
 
-          <div className="mt-2 flex items-center justify-center space-x-2 font-mono text-[11px] text-zinc-400">
+          <div className="mt-2 flex flex-wrap items-center justify-center gap-1.5 font-mono text-[10px] text-zinc-400">
             <span className="px-2 py-0.5 rounded bg-zinc-800/80 text-zinc-300">
               UPC: {upc}
             </span>
-            <span className="px-2 py-0.5 rounded bg-zinc-800/80 text-cyan-300/90 capitalize">
-              PHYSICS: {config.touch.mode}
+            <span className="px-2 py-0.5 rounded bg-zinc-800/80 text-cyan-300/90 capitalize flex items-center gap-1">
+              <Palette className="w-3 h-3 text-cyan-400" /> {config.colorThemeName}
+            </span>
+            <span className="px-2 py-0.5 rounded bg-zinc-800/80 text-indigo-300/90 capitalize flex items-center gap-1">
+              <Layers className="w-3 h-3 text-indigo-400" /> {config.shapeArchetype}
             </span>
           </div>
         </div>
@@ -309,18 +314,22 @@ export default function Home() {
 
           <div className="grid grid-cols-2 gap-3 text-[11px]">
             <div className="bg-zinc-900/60 p-2.5 rounded-lg border border-zinc-800">
-              <div className="text-zinc-500 mb-0.5">FLOW ANGLE</div>
-              <div className="text-zinc-200 font-bold">{config.particles.flowAngleDegrees.toFixed(1)}°</div>
-            </div>
-            <div className="bg-zinc-900/60 p-2.5 rounded-lg border border-zinc-800">
-              <div className="text-zinc-500 mb-0.5">PARTICLE SPEED</div>
-              <div className="text-zinc-200 font-bold">{config.particles.speed.toFixed(2)} px/f</div>
-            </div>
-            <div className="bg-zinc-900/60 p-2.5 rounded-lg border border-zinc-800">
-              <div className="text-zinc-500 mb-0.5">GRAVITY VECTOR</div>
-              <div className="text-zinc-200 font-bold">
-                X:{config.particles.gravity.x.toFixed(2)} Y:{config.particles.gravity.y.toFixed(2)}
+              <div className="text-zinc-500 mb-0.5 flex items-center gap-1">
+                <Compass className="w-3 h-3 text-cyan-400" /> MOTION DYNAMICS
               </div>
+              <div className="text-zinc-200 font-bold uppercase">{config.flowPattern}</div>
+            </div>
+            <div className="bg-zinc-900/60 p-2.5 rounded-lg border border-zinc-800">
+              <div className="text-zinc-500 mb-0.5 flex items-center gap-1">
+                <Layers className="w-3 h-3 text-indigo-400" /> SHAPE ARCHETYPE
+              </div>
+              <div className="text-zinc-200 font-bold uppercase">{config.shapeArchetype}</div>
+            </div>
+            <div className="bg-zinc-900/60 p-2.5 rounded-lg border border-zinc-800">
+              <div className="text-zinc-500 mb-0.5 flex items-center gap-1">
+                <Palette className="w-3 h-3 text-purple-400" /> COLOR PALETTE
+              </div>
+              <div className="text-zinc-200 font-bold">{config.colorThemeName}</div>
             </div>
             <div className="bg-zinc-900/60 p-2.5 rounded-lg border border-zinc-800">
               <div className="text-zinc-500 mb-0.5">TOUCH FIELD</div>

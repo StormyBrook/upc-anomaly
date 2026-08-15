@@ -7,6 +7,34 @@ export interface ColorHSLA {
 
 export type TouchMode = "repel" | "attract" | "vortex" | "ripple" | "orbit";
 
+export type FlowPattern =
+  | "diagonal"
+  | "cardinal"
+  | "spiralVortex"
+  | "radialBurst"
+  | "waveFlow"
+  | "convergingCore";
+
+export type ShapeArchetype =
+  | "triangles"
+  | "diamonds"
+  | "hexagons"
+  | "rings"
+  | "crosses"
+  | "shards"
+  | "mixed";
+
+export type ColorThemeName =
+  | "Neon Cyberpunk"
+  | "Thermal Infrared"
+  | "Bioluminescent Deep"
+  | "Acid Monochrome"
+  | "Solar Flare"
+  | "Synthwave Sunset"
+  | "Void Prism"
+  | "Vaporwave Pastel"
+  | "Supernova Core";
+
 export type ScaleType =
   | "minorPentatonic"
   | "lydian"
@@ -15,33 +43,47 @@ export type ScaleType =
   | "wholeTone"
   | "ambientMajor";
 
+export interface ColorPalette {
+  name: ColorThemeName;
+  bgHSLA: ColorHSLA;
+  primary: ColorHSLA;
+  secondary: ColorHSLA;
+  accent: ColorHSLA;
+  blendMode: "source-over" | "screen" | "additive";
+}
+
 export interface AnomalyConfig {
   upc: string;
   hash: number;
   anomalyName: string;
   anomalyClass: string;
 
-  // Visual Dynamics
+  // Visual Dynamics & Generative Expansions
+  flowPattern: FlowPattern;
+  shapeArchetype: ShapeArchetype;
+  colorThemeName: ColorThemeName;
+
   colors: {
-    bg: string;
     bgHSLA: ColorHSLA;
     primary: ColorHSLA;
     secondary: ColorHSLA;
     accent: ColorHSLA;
-    blendMode: "source-over" | "screen" | "additive" | "difference";
+    blendMode: "source-over" | "screen" | "additive";
   };
 
   particles: {
     count: number;
     minSize: number;
     maxSize: number;
-    flowAngleDegrees: number; // angle of diagonal flow
-    speed: number; // base velocity
+    flowAngleDegrees: number;
+    speed: number;
     gravity: { x: number; y: number };
-    turbulence: number; // Perlin noise scale/force
-    spinSpeed: number; // triangle rotational velocity
-    trailFade: number; // background alpha persistence (1-255, lower = longer trails)
-    wireframeRatio: number; // percentage of triangles drawn as wireframe
+    turbulence: number;
+    spinSpeed: number;
+    trailFade: number;
+    wireframeRatio: number;
+    waveFrequency?: number;
+    waveAmplitude?: number;
   };
 
   // Interaction
@@ -53,18 +95,18 @@ export interface AnomalyConfig {
 
   // Audio Synth Parameters
   audio: {
-    rootNote: number; // Midi note number (36 - 72)
-    rootFreq: number; // Hz
+    rootNote: number;
+    rootFreq: number;
     scale: ScaleType;
-    scaleNotes: number[]; // Frequencies in Hz
+    scaleNotes: number[];
     osc1Type: OscillatorType;
     osc2Type: OscillatorType;
-    cutoffFreq: number; // Filter cutoff in Hz (100 - 4000)
-    resonance: number; // Q factor (0.5 - 15)
-    lfoRate: number; // Hz (0.1 - 8.0)
-    detune: number; // cents (-25 to +25)
-    reverbDecay: number; // seconds
-    arpeggioBpm: number; // BPM for option 2 rhythmic chimes
+    cutoffFreq: number;
+    resonance: number;
+    lfoRate: number;
+    detune: number;
+    reverbDecay: number;
+    arpeggioBpm: number;
   };
 }
 
@@ -117,6 +159,81 @@ function midiToFreq(midi: number): number {
   return 440 * Math.pow(2, (midi - 69) / 12);
 }
 
+const COLOR_PALETTES: ColorPalette[] = [
+  {
+    name: "Neon Cyberpunk",
+    bgHSLA: { h: 260, s: 80, l: 4, a: 1 },
+    primary: { h: 180, s: 100, l: 55, a: 0.85 },
+    secondary: { h: 320, s: 95, l: 60, a: 0.8 },
+    accent: { h: 280, s: 100, l: 65, a: 0.9 },
+    blendMode: "screen",
+  },
+  {
+    name: "Thermal Infrared",
+    bgHSLA: { h: 230, s: 90, l: 3, a: 1 },
+    primary: { h: 0, s: 100, l: 55, a: 0.9 },
+    secondary: { h: 40, s: 100, l: 50, a: 0.85 },
+    accent: { h: 60, s: 100, l: 65, a: 0.95 },
+    blendMode: "additive",
+  },
+  {
+    name: "Bioluminescent Deep",
+    bgHSLA: { h: 195, s: 75, l: 4, a: 1 },
+    primary: { h: 160, s: 90, l: 50, a: 0.85 },
+    secondary: { h: 190, s: 85, l: 55, a: 0.8 },
+    accent: { h: 140, s: 95, l: 65, a: 0.9 },
+    blendMode: "screen",
+  },
+  {
+    name: "Acid Monochrome",
+    bgHSLA: { h: 110, s: 40, l: 2, a: 1 },
+    primary: { h: 105, s: 100, l: 50, a: 0.9 },
+    secondary: { h: 100, s: 80, l: 75, a: 0.75 },
+    accent: { h: 115, s: 100, l: 85, a: 0.95 },
+    blendMode: "source-over",
+  },
+  {
+    name: "Solar Flare",
+    bgHSLA: { h: 20, s: 80, l: 3, a: 1 },
+    primary: { h: 35, s: 100, l: 55, a: 0.85 },
+    secondary: { h: 15, s: 95, l: 50, a: 0.8 },
+    accent: { h: 50, s: 100, l: 65, a: 0.95 },
+    blendMode: "additive",
+  },
+  {
+    name: "Synthwave Sunset",
+    bgHSLA: { h: 280, s: 85, l: 4, a: 1 },
+    primary: { h: 330, s: 95, l: 60, a: 0.85 },
+    secondary: { h: 25, s: 95, l: 55, a: 0.8 },
+    accent: { h: 290, s: 90, l: 70, a: 0.9 },
+    blendMode: "screen",
+  },
+  {
+    name: "Void Prism",
+    bgHSLA: { h: 0, s: 0, l: 2, a: 1 },
+    primary: { h: 200, s: 100, l: 65, a: 0.85 },
+    secondary: { h: 45, s: 100, l: 60, a: 0.85 },
+    accent: { h: 300, s: 100, l: 70, a: 0.9 },
+    blendMode: "additive",
+  },
+  {
+    name: "Vaporwave Pastel",
+    bgHSLA: { h: 240, s: 50, l: 5, a: 1 },
+    primary: { h: 175, s: 75, l: 65, a: 0.85 },
+    secondary: { h: 300, s: 70, l: 70, a: 0.8 },
+    accent: { h: 210, s: 80, l: 75, a: 0.9 },
+    blendMode: "screen",
+  },
+  {
+    name: "Supernova Core",
+    bgHSLA: { h: 270, s: 90, l: 3, a: 1 },
+    primary: { h: 220, s: 100, l: 60, a: 0.85 },
+    secondary: { h: 10, s: 100, l: 55, a: 0.85 },
+    accent: { h: 50, s: 100, l: 75, a: 0.95 },
+    blendMode: "additive",
+  },
+];
+
 const ANOMALY_CLASSES = [
   "Sub-Space Cascade",
   "Quantum Rift",
@@ -142,20 +259,36 @@ export function parseUPCToConfig(upcInput: string): AnomalyConfig {
   const shortCode = upc.slice(-4) || "0000";
   const defaultName = `${anomalyClass} [SIG-${CODE_GREEK[greekIndex]}-${shortCode}]`;
 
-  const baseHue = rng.range(0, 360);
-  const secondaryHue = (baseHue + rng.range(30, 180)) % 360;
-  const accentHue = (baseHue + rng.range(120, 240)) % 360;
+  // Flow Pattern Assignment
+  const flowPatterns: FlowPattern[] = [
+    "diagonal",
+    "cardinal",
+    "spiralVortex",
+    "radialBurst",
+    "waveFlow",
+    "convergingCore",
+  ];
+  const flowPattern = rng.pick(flowPatterns);
 
-  const bgHue = (baseHue + 180) % 360;
-  const bgSat = rng.range(10, 35);
-  const bgLight = rng.range(2, 8);
+  // Shape Archetype Assignment
+  const shapeArchetypes: ShapeArchetype[] = [
+    "triangles",
+    "diamonds",
+    "hexagons",
+    "rings",
+    "crosses",
+    "shards",
+    "mixed",
+  ];
+  const shapeArchetype = rng.pick(shapeArchetypes);
 
-  const isReverse = rng.next() > 0.5;
-  const baseAngle = isReverse ? rng.range(195, 255) : rng.range(15, 75);
+  // Curated Color Palette Theme Assignment
+  const palette = rng.pick(COLOR_PALETTES);
 
-  const touchModes: TouchMode[] = ["repel", "attract", "vortex", "ripple", "orbit"];
-  const touchMode = rng.pick(touchModes);
+  // Motion Angle
+  const flowAngleDegrees = rng.range(0, 360);
 
+  // Audio Scale
   const scales: ScaleType[] = [
     "minorPentatonic",
     "lydian",
@@ -165,48 +298,49 @@ export function parseUPCToConfig(upcInput: string): AnomalyConfig {
     "ambientMajor",
   ];
   const scaleType = rng.pick(scales);
-  const rootNote = rng.rangeInt(48, 64); // C3 - E4 higher chime scale
+  const rootNote = rng.rangeInt(48, 64);
   const scaleFrequencies = SCALE_INTERVALS[scaleType].map((interval) =>
     midiToFreq(rootNote + interval)
   );
 
   const oscTypes: OscillatorType[] = ["sine", "triangle"];
 
+  const touchModes: TouchMode[] = ["repel", "attract", "vortex", "ripple", "orbit"];
+
   return {
     upc,
     hash: numericHash,
     anomalyName: defaultName,
     anomalyClass,
+    flowPattern,
+    shapeArchetype,
+    colorThemeName: palette.name,
     colors: {
-      bg: `hsla(${bgHue}, ${bgSat}%, ${bgLight}%, 1)`,
-      bgHSLA: { h: bgHue, s: bgSat, l: bgLight, a: 1 },
-      primary: { h: baseHue, s: rng.range(65, 95), l: rng.range(50, 75), a: rng.range(0.6, 0.9) },
-      secondary: {
-        h: secondaryHue,
-        s: rng.range(60, 90),
-        l: rng.range(45, 70),
-        a: rng.range(0.5, 0.85),
-      },
-      accent: { h: accentHue, s: rng.range(75, 100), l: rng.range(60, 85), a: rng.range(0.7, 0.95) },
-      blendMode: rng.pick(["source-over", "screen", "additive"] as const),
+      bgHSLA: palette.bgHSLA,
+      primary: palette.primary,
+      secondary: palette.secondary,
+      accent: palette.accent,
+      blendMode: palette.blendMode,
     },
     particles: {
-      count: rng.rangeInt(300, 650), // Denser count of small particles
-      minSize: rng.range(4, 8),      // Much smaller min size
-      maxSize: rng.range(18, 38),    // Max size capped
-      flowAngleDegrees: baseAngle,
-      speed: rng.range(1.5, 5.8),
+      count: rng.rangeInt(280, 600),
+      minSize: rng.range(4, 9),
+      maxSize: rng.range(20, 42),
+      flowAngleDegrees,
+      speed: rng.range(1.6, 6.0),
       gravity: {
-        x: rng.range(-0.08, 0.08),
-        y: rng.range(0.02, 0.25),
+        x: rng.range(-0.1, 0.1),
+        y: rng.range(-0.1, 0.2),
       },
       turbulence: rng.range(0.002, 0.015),
-      spinSpeed: rng.range(-0.08, 0.08),
+      spinSpeed: rng.range(-0.09, 0.09),
       trailFade: rng.rangeInt(18, 55),
       wireframeRatio: rng.range(0.15, 0.5),
+      waveFrequency: rng.range(0.02, 0.08),
+      waveAmplitude: rng.range(2.0, 8.0),
     },
     touch: {
-      mode: touchMode,
+      mode: rng.pick(touchModes),
       radius: rng.range(120, 260),
       force: rng.range(3.0, 8.5),
     },
@@ -222,7 +356,7 @@ export function parseUPCToConfig(upcInput: string): AnomalyConfig {
       lfoRate: rng.range(0.2, 2.5),
       detune: rng.range(-10, 10),
       reverbDecay: rng.range(1.5, 4.5),
-      arpeggioBpm: rng.rangeInt(60, 120),
+      arpeggioBpm: rng.rangeInt(65, 125),
     },
   };
 }

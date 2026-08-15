@@ -2,7 +2,7 @@
 
 import React, { useEffect, useRef } from "react";
 import p5 from "p5";
-import { AnomalyConfig, ColorHSLA } from "@/lib/upcEngine";
+import { AnomalyConfig, ColorHSLA, ShapeArchetype } from "@/lib/upcEngine";
 
 interface GenerativeCanvasProps {
   config: AnomalyConfig;
@@ -24,6 +24,9 @@ interface Particle {
   isWireframe: boolean;
   pulsePhase: number;
   hasCollided: boolean;
+  shapeType: ShapeArchetype;
+  radialAngle: number;
+  distFromCenter: number;
 }
 
 export const GenerativeCanvas: React.FC<GenerativeCanvasProps> = ({
@@ -56,12 +59,19 @@ export const GenerativeCanvas: React.FC<GenerativeCanvasProps> = ({
         return config.colors.accent;
       };
 
+      const pickShape = (): ShapeArchetype => {
+        if (config.shapeArchetype !== "mixed") return config.shapeArchetype;
+        const shapes: ShapeArchetype[] = ["triangles", "diamonds", "hexagons", "rings", "crosses", "shards"];
+        return p.random(shapes);
+      };
+
       const createParticle = (x?: number, y?: number): Particle => {
         const px = x !== undefined ? x : p.random(-50, p.width + 50);
         const py = y !== undefined ? y : p.random(-50, p.height + 50);
 
         const sizeRand = Math.pow(p.random(0, 1), 2.8);
         const sz = config.particles.minSize + sizeRand * (config.particles.maxSize - config.particles.minSize);
+        const rAngle = p.random(p.TWO_PI);
 
         return {
           x: px,
@@ -75,7 +85,76 @@ export const GenerativeCanvas: React.FC<GenerativeCanvasProps> = ({
           isWireframe: p.random(1) < config.particles.wireframeRatio,
           pulsePhase: p.random(p.TWO_PI),
           hasCollided: false,
+          shapeType: pickShape(),
+          radialAngle: rAngle,
+          distFromCenter: p.random(10, Math.max(p.width, p.height) * 0.6),
         };
+      };
+
+      // Shape drawing functions
+      const drawShape = (pt: Particle, currentSize: number) => {
+        const c = pt.color;
+        if (pt.isWireframe) {
+          p.noFill();
+          p.stroke(c.h, c.s, c.l, c.a);
+          p.strokeWeight(1.5);
+        } else {
+          p.fill(c.h, c.s, c.l, c.a);
+          p.noStroke();
+        }
+
+        switch (pt.shapeType) {
+          case "triangles": {
+            const h = currentSize * 0.866;
+            p.triangle(0, -h * 0.66, -currentSize * 0.5, h * 0.33, currentSize * 0.5, h * 0.33);
+            break;
+          }
+          case "diamonds": {
+            const half = currentSize * 0.5;
+            p.quad(0, -half * 1.3, half, 0, 0, half * 1.3, -half, 0);
+            break;
+          }
+          case "hexagons": {
+            p.beginShape();
+            for (let a = 0; a < p.TWO_PI; a += p.TWO_PI / 6) {
+              const hx = Math.cos(a) * currentSize * 0.5;
+              const hy = Math.sin(a) * currentSize * 0.5;
+              p.vertex(hx, hy);
+            }
+            p.endShape(p.CLOSE);
+            break;
+          }
+          case "rings": {
+            if (pt.isWireframe) {
+              p.ellipse(0, 0, currentSize, currentSize);
+            } else {
+              p.ellipse(0, 0, currentSize, currentSize);
+              p.fill(config.colors.bgHSLA.h, config.colors.bgHSLA.s, config.colors.bgHSLA.l);
+              p.ellipse(0, 0, currentSize * 0.45, currentSize * 0.45);
+            }
+            break;
+          }
+          case "crosses": {
+            const w = currentSize * 0.2;
+            const len = currentSize * 0.6;
+            p.rect(-w, -len, w * 2, len * 2);
+            p.rect(-len, -w, len * 2, w * 2);
+            break;
+          }
+          case "shards": {
+            p.quad(
+              0, -currentSize * 0.8,
+              currentSize * 0.35, currentSize * 0.1,
+              0, currentSize * 0.6,
+              -currentSize * 0.2, 0
+            );
+            break;
+          }
+          default: {
+            const h = currentSize * 0.866;
+            p.triangle(0, -h * 0.66, -currentSize * 0.5, h * 0.33, currentSize * 0.5, h * 0.33);
+          }
+        }
       };
 
       p.setup = () => {
@@ -119,6 +198,8 @@ export const GenerativeCanvas: React.FC<GenerativeCanvasProps> = ({
         const isPointerActive = p.mouseIsPressed || p.touches.length > 0;
         const ptrX = p.mouseX;
         const ptrY = p.mouseY;
+        const centerX = p.width * 0.5;
+        const centerY = p.height * 0.5;
 
         if (isPointerActive && onCanvasPan) {
           onCanvasPan(ptrX / p.width, ptrY / p.height);
@@ -127,6 +208,68 @@ export const GenerativeCanvas: React.FC<GenerativeCanvasProps> = ({
         for (let i = 0; i < particles.length; i++) {
           const pt = particles[i];
 
+          let targetVx = baseDx;
+          let targetVy = baseDy;
+
+          // Compute specific motion patterns
+          switch (config.flowPattern) {
+            case "cardinal": {
+              targetVx = baseDx;
+              targetVy = baseDy;
+              break;
+            }
+            case "spiralVortex": {
+              pt.radialAngle += 0.015 * (config.particles.speed / 3);
+              pt.distFromCenter += config.particles.gravity.y * 10;
+              if (pt.distFromCenter > Math.max(p.width, p.height) * 0.7) {
+                pt.distFromCenter = 10;
+              }
+              pt.x = centerX + Math.cos(pt.radialAngle) * pt.distFromCenter;
+              pt.y = centerY + Math.sin(pt.radialAngle) * pt.distFromCenter;
+              targetVx = 0;
+              targetVy = 0;
+              break;
+            }
+            case "radialBurst": {
+              pt.distFromCenter += config.particles.speed;
+              if (pt.distFromCenter > Math.max(p.width, p.height) * 0.7) {
+                pt.distFromCenter = p.random(5, 30);
+                pt.radialAngle = p.random(p.TWO_PI);
+              }
+              pt.x = centerX + Math.cos(pt.radialAngle) * pt.distFromCenter;
+              pt.y = centerY + Math.sin(pt.radialAngle) * pt.distFromCenter;
+              targetVx = 0;
+              targetVy = 0;
+              break;
+            }
+            case "convergingCore": {
+              pt.distFromCenter -= config.particles.speed * 0.8;
+              if (pt.distFromCenter < 10) {
+                pt.distFromCenter = Math.max(p.width, p.height) * 0.6;
+                pt.radialAngle = p.random(p.TWO_PI);
+              }
+              pt.x = centerX + Math.cos(pt.radialAngle) * pt.distFromCenter;
+              pt.y = centerY + Math.sin(pt.radialAngle) * pt.distFromCenter;
+              targetVx = 0;
+              targetVy = 0;
+              break;
+            }
+            case "waveFlow": {
+              const freq = config.particles.waveFrequency || 0.04;
+              const amp = config.particles.waveAmplitude || 5.0;
+              const waveVal = Math.sin(p.frameCount * freq + pt.x * 0.01) * amp;
+              targetVx = baseDx;
+              targetVy = baseDy + waveVal;
+              break;
+            }
+            case "diagonal":
+            default: {
+              targetVx = baseDx;
+              targetVy = baseDy;
+            }
+          }
+
+          // Turbulence Noise
           const noiseScale = config.particles.turbulence;
           const noiseVal = p.noise(pt.x * noiseScale, pt.y * noiseScale, p.frameCount * 0.005);
           const noiseAngle = noiseVal * p.TWO_PI * 2;
@@ -143,7 +286,6 @@ export const GenerativeCanvas: React.FC<GenerativeCanvasProps> = ({
             if (dist < radius && dist > 0.001) {
               const normFactor = (1 - dist / radius) * config.touch.force;
 
-              // Finger collision detection - only trigger on direct close hit (~35% of radius) & ~25% chance
               if (!pt.hasCollided && dist < radius * 0.35 && p.random(1) < 0.25) {
                 pt.hasCollided = true;
                 if (onParticleCollision) {
@@ -181,14 +323,22 @@ export const GenerativeCanvas: React.FC<GenerativeCanvasProps> = ({
             pt.hasCollided = false;
           }
 
-          pt.vx = p.lerp(pt.vx, baseDx + forceX, 0.05);
-          pt.vy = p.lerp(pt.vy, baseDy + forceY, 0.05);
+          if (
+            config.flowPattern === "diagonal" ||
+            config.flowPattern === "cardinal" ||
+            config.flowPattern === "waveFlow"
+          ) {
+            pt.vx = p.lerp(pt.vx, targetVx + forceX, 0.05);
+            pt.vy = p.lerp(pt.vy, targetVy + forceY, 0.05);
 
-          pt.x += pt.vx;
-          pt.y += pt.vy;
+            pt.x += pt.vx;
+            pt.y += pt.vy;
+          }
+
           pt.rotation += pt.rotSpeed;
           pt.pulsePhase += 0.03;
 
+          // Screen wrap / recycling
           if (
             pt.x < -100 ||
             pt.x > p.width + 100 ||
@@ -215,26 +365,7 @@ export const GenerativeCanvas: React.FC<GenerativeCanvasProps> = ({
           p.rotate(pt.rotation);
 
           const currentSize = pt.size * (1 + Math.sin(pt.pulsePhase) * 0.12);
-          const c = pt.color;
-
-          if (pt.isWireframe) {
-            p.noFill();
-            p.stroke(c.h, c.s, c.l, c.a);
-            p.strokeWeight(1.5);
-          } else {
-            p.fill(c.h, c.s, c.l, c.a);
-            p.noStroke();
-          }
-
-          const h = currentSize * 0.866;
-          p.triangle(
-            0,
-            -h * 0.66,
-            -currentSize * 0.5,
-            h * 0.33,
-            currentSize * 0.5,
-            h * 0.33
-          );
+          drawShape(pt, currentSize);
 
           p.pop();
         }
