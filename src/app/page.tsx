@@ -22,14 +22,12 @@ import {
   Palette,
   Shuffle,
 } from "lucide-react";
-import confetti from "canvas-confetti";
 
 const GenerativeCanvas = dynamic(
   () => import("@/components/GenerativeCanvas").then((mod) => mod.GenerativeCanvas),
   { ssr: false }
 );
 
-// 10 diverse sample UPC codes for instant testing
 const SAMPLE_UPCS = [
   { code: "042600000008", label: "Polar Seltzer Water" },
   { code: "012000000133", label: "Mountain Dew Soda" },
@@ -115,20 +113,6 @@ export default function Home() {
       }
 
       fetchProductMetadata(cleanUPC);
-
-      try {
-        confetti({
-          particleCount: 25,
-          spread: 60,
-          origin: { y: 0.8 },
-          colors: [
-            `hsl(${newConfig.colors.primary.h}, 80%, 60%)`,
-            `hsl(${newConfig.colors.secondary.h}, 80%, 60%)`,
-          ],
-        });
-      } catch {
-        // Ignore if confetti fails
-      }
     },
     [fetchProductMetadata]
   );
@@ -137,7 +121,6 @@ export default function Home() {
     fetchProductMetadata(SAMPLE_UPCS[0].code);
   }, [fetchProductMetadata]);
 
-  // Cycle through sample UPCs
   const handleCycleSample = () => {
     const nextIdx = (sampleIndex + 1) % SAMPLE_UPCS.length;
     setSampleIndex(nextIdx);
@@ -263,7 +246,6 @@ export default function Home() {
       </div>
 
       <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 flex flex-col items-center space-y-3 w-full max-w-sm px-4">
-        {/* Main Camera Scan Button */}
         <button
           onClick={() => setIsScannerOpen(true)}
           style={{
@@ -277,7 +259,6 @@ export default function Home() {
           <span>SCAN UPC BARCODE</span>
         </button>
 
-        {/* Action Row: Sample Preset Switcher, Manual Entry & Specs Inspector */}
         <div className="flex items-center space-x-2 w-full justify-center">
           <button
             onClick={handleCycleSample}

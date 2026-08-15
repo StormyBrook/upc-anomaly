@@ -59,11 +59,15 @@ export const GenerativeCanvas: React.FC<GenerativeCanvasProps> = ({
         return config.colors.accent;
       };
 
-      const pickShape = (): ShapeArchetype => {
-        if (config.shapeArchetype !== "mixed") return config.shapeArchetype;
-        const shapes: ShapeArchetype[] = ["triangles", "diamonds", "hexagons", "rings", "crosses", "shards"];
-        return p.random(shapes);
+      // Determine single uniform shape for this entire anomaly stream
+      const getUniformShape = (): ShapeArchetype => {
+        if (config.shapeArchetype === "mixed") {
+          return "triangles"; // Default clean stream shape if mixed requested
+        }
+        return config.shapeArchetype;
       };
+
+      const anomalyShape = getUniformShape();
 
       const createParticle = (x?: number, y?: number): Particle => {
         const px = x !== undefined ? x : p.random(-50, p.width + 50);
@@ -76,8 +80,8 @@ export const GenerativeCanvas: React.FC<GenerativeCanvasProps> = ({
         return {
           x: px,
           y: py,
-          vx: baseDx + p.random(-0.5, 0.5),
-          vy: baseDy + p.random(-0.5, 0.5),
+          vx: baseDx,
+          vy: baseDy,
           size: sz,
           rotation: p.random(p.TWO_PI),
           rotSpeed: p.random(-config.particles.spinSpeed, config.particles.spinSpeed),
@@ -85,13 +89,12 @@ export const GenerativeCanvas: React.FC<GenerativeCanvasProps> = ({
           isWireframe: p.random(1) < config.particles.wireframeRatio,
           pulsePhase: p.random(p.TWO_PI),
           hasCollided: false,
-          shapeType: pickShape(),
+          shapeType: anomalyShape,
           radialAngle: rAngle,
-          distFromCenter: p.random(10, Math.max(p.width, p.height) * 0.6),
+          distFromCenter: p.random(5, Math.max(p.width, p.height) * 0.65),
         };
       };
 
-      // Shape drawing functions
       const drawShape = (pt: Particle, currentSize: number) => {
         const c = pt.color;
         if (pt.isWireframe) {
@@ -125,10 +128,8 @@ export const GenerativeCanvas: React.FC<GenerativeCanvasProps> = ({
             break;
           }
           case "rings": {
-            if (pt.isWireframe) {
-              p.ellipse(0, 0, currentSize, currentSize);
-            } else {
-              p.ellipse(0, 0, currentSize, currentSize);
+            p.ellipse(0, 0, currentSize, currentSize);
+            if (!pt.isWireframe) {
               p.fill(config.colors.bgHSLA.h, config.colors.bgHSLA.s, config.colors.bgHSLA.l);
               p.ellipse(0, 0, currentSize * 0.45, currentSize * 0.45);
             }
@@ -200,6 +201,7 @@ export const GenerativeCanvas: React.FC<GenerativeCanvasProps> = ({
         const ptrY = p.mouseY;
         const centerX = p.width * 0.5;
         const centerY = p.height * 0.5;
+        const maxRadius = Math.max(p.width, p.height) * 0.65;
 
         if (isPointerActive && onCanvasPan) {
           onCanvasPan(ptrX / p.width, ptrY / p.height);
@@ -208,157 +210,131 @@ export const GenerativeCanvas: React.FC<GenerativeCanvasProps> = ({
         for (let i = 0; i < particles.length; i++) {
           const pt = particles[i];
 
-          let targetVx = baseDx;
-          let targetVy = baseDy;
+          // Uniform motion logic for all particles
+          if (
+            config.flowPattern === "spiralVortex" ||
+            config.flowPattern === "radialBurst" ||
+            config.flowPattern === "convergingCore"
+          ) {
+            if (config.flowPattern === "spiralVortex") {
+              pt.radialAngle += 0.012 * (config.particles.speed / 3);
+              pt.distFromCenter += config.particles.speed * 0.6;
+              if (pt.distFromCenter > maxRadius) {
+                pt.distFromCenter = p.random(2, 15);
+                pt.radialAngle = p.random(p.TWO_PI);
+              }
+            } else if (config.flowPattern === "radialBurst") {
+              pt.distFromCenter += config.particles.speed * 1.2;
+              if (pt.distFromCenter > maxRadius) {
+                pt.distFromCenter = p.random(2, 15);
+                pt.radialAngle = p.random(p.TWO_PI);
+              }
+            } else if (config.flowPattern === "convergingCore") {
+              pt.distFromCenter -= config.particles.speed * 0.9;
+              if (pt.distFromCenter < 5) {
+                pt.distFromCenter = maxRadius;
+                pt.radialAngle = p.random(p.TWO_PI);
+              }
+            }
 
-          // Compute specific motion patterns
-          switch (config.flowPattern) {
-            case "cardinal": {
-              targetVx = baseDx;
-              targetVy = baseDy;
-              break;
-            }
-            case "spiralVortex": {
-              pt.radialAngle += 0.015 * (config.particles.speed / 3);
-              pt.distFromCenter += config.particles.gravity.y * 10;
-              if (pt.distFromCenter > Math.max(p.width, p.height) * 0.7) {
-                pt.distFromCenter = 10;
-              }
-              pt.x = centerX + Math.cos(pt.radialAngle) * pt.distFromCenter;
-              pt.y = centerY + Math.sin(pt.radialAngle) * pt.distFromCenter;
-              targetVx = 0;
-              targetVy = 0;
-              break;
-            }
-            case "radialBurst": {
-              pt.distFromCenter += config.particles.speed;
-              if (pt.distFromCenter > Math.max(p.width, p.height) * 0.7) {
-                pt.distFromCenter = p.random(5, 30);
-                pt.radialAngle = p.random(p.TWO_PI);
-              }
-              pt.x = centerX + Math.cos(pt.radialAngle) * pt.distFromCenter;
-              pt.y = centerY + Math.sin(pt.radialAngle) * pt.distFromCenter;
-              targetVx = 0;
-              targetVy = 0;
-              break;
-            }
-            case "convergingCore": {
-              pt.distFromCenter -= config.particles.speed * 0.8;
-              if (pt.distFromCenter < 10) {
-                pt.distFromCenter = Math.max(p.width, p.height) * 0.6;
-                pt.radialAngle = p.random(p.TWO_PI);
-              }
-              pt.x = centerX + Math.cos(pt.radialAngle) * pt.distFromCenter;
-              pt.y = centerY + Math.sin(pt.radialAngle) * pt.distFromCenter;
-              targetVx = 0;
-              targetVy = 0;
-              break;
-            }
-            case "waveFlow": {
+            pt.x = centerX + Math.cos(pt.radialAngle) * pt.distFromCenter;
+            pt.y = centerY + Math.sin(pt.radialAngle) * pt.distFromCenter;
+          } else {
+            // Linear, Cardinal, Wave Flow
+            let targetVx = baseDx;
+            let targetVy = baseDy;
+
+            if (config.flowPattern === "waveFlow") {
               const freq = config.particles.waveFrequency || 0.04;
               const amp = config.particles.waveAmplitude || 5.0;
               const waveVal = Math.sin(p.frameCount * freq + pt.x * 0.01) * amp;
-              targetVx = baseDx;
               targetVy = baseDy + waveVal;
-              break;
             }
-            case "diagonal":
-            default: {
-              targetVx = baseDx;
-              targetVy = baseDy;
-            }
-          }
 
-          // Turbulence Noise
-          const noiseScale = config.particles.turbulence;
-          const noiseVal = p.noise(pt.x * noiseScale, pt.y * noiseScale, p.frameCount * 0.005);
-          const noiseAngle = noiseVal * p.TWO_PI * 2;
+            const noiseScale = config.particles.turbulence;
+            const noiseVal = p.noise(pt.x * noiseScale, pt.y * noiseScale, p.frameCount * 0.005);
+            const noiseAngle = noiseVal * p.TWO_PI * 2;
 
-          let forceX = Math.cos(noiseAngle) * 0.4 + config.particles.gravity.x;
-          let forceY = Math.sin(noiseAngle) * 0.4 + config.particles.gravity.y;
+            let forceX = Math.cos(noiseAngle) * 0.3 + config.particles.gravity.x;
+            let forceY = Math.sin(noiseAngle) * 0.3 + config.particles.gravity.y;
 
-          if (isPointerActive) {
-            const dx = ptrX - pt.x;
-            const dy = ptrY - pt.y;
-            const dist = Math.sqrt(dx * dx + dy * dy);
-            const radius = config.touch.radius;
+            if (isPointerActive) {
+              const dx = ptrX - pt.x;
+              const dy = ptrY - pt.y;
+              const dist = Math.sqrt(dx * dx + dy * dy);
+              const radius = config.touch.radius;
 
-            if (dist < radius && dist > 0.001) {
-              const normFactor = (1 - dist / radius) * config.touch.force;
+              if (dist < radius && dist > 0.001) {
+                const normFactor = (1 - dist / radius) * config.touch.force;
 
-              if (!pt.hasCollided && dist < radius * 0.35 && p.random(1) < 0.25) {
-                pt.hasCollided = true;
-                if (onParticleCollision) {
-                  const pitchRatio = (pt.x + pt.y) / (p.width + p.height);
-                  onParticleCollision(pitchRatio, pt.size);
+                if (!pt.hasCollided && dist < radius * 0.35 && p.random(1) < 0.25) {
+                  pt.hasCollided = true;
+                  if (onParticleCollision) {
+                    const pitchRatio = (pt.x + pt.y) / (p.width + p.height);
+                    onParticleCollision(pitchRatio, pt.size);
+                  }
                 }
-              }
 
-              switch (config.touch.mode) {
-                case "repel":
-                  forceX -= (dx / dist) * normFactor * 3;
-                  forceY -= (dy / dist) * normFactor * 3;
-                  break;
-                case "attract":
-                  forceX += (dx / dist) * normFactor * 2;
-                  forceY += (dy / dist) * normFactor * 2;
-                  break;
-                case "vortex":
-                  forceX += (-dy / dist) * normFactor * 3.5;
-                  forceY += (dx / dist) * normFactor * 3.5;
-                  break;
-                case "ripple":
-                  forceX += Math.sin(dist * 0.1) * normFactor * 2.5;
-                  forceY += Math.cos(dist * 0.1) * normFactor * 2.5;
-                  break;
-                case "orbit":
-                  forceX += ((-dy / dist) * 2 + (dx / dist) * 0.5) * normFactor;
-                  forceY += ((dx / dist) * 2 + (dy / dist) * 0.5) * normFactor;
-                  break;
+                switch (config.touch.mode) {
+                  case "repel":
+                    forceX -= (dx / dist) * normFactor * 3;
+                    forceY -= (dy / dist) * normFactor * 3;
+                    break;
+                  case "attract":
+                    forceX += (dx / dist) * normFactor * 2;
+                    forceY += (dy / dist) * normFactor * 2;
+                    break;
+                  case "vortex":
+                    forceX += (-dy / dist) * normFactor * 3.5;
+                    forceY += (dx / dist) * normFactor * 3.5;
+                    break;
+                  case "ripple":
+                    forceX += Math.sin(dist * 0.1) * normFactor * 2.5;
+                    forceY += Math.cos(dist * 0.1) * normFactor * 2.5;
+                    break;
+                  case "orbit":
+                    forceX += ((-dy / dist) * 2 + (dx / dist) * 0.5) * normFactor;
+                    forceY += ((dx / dist) * 2 + (dy / dist) * 0.5) * normFactor;
+                    break;
+                }
+              } else {
+                pt.hasCollided = false;
               }
             } else {
               pt.hasCollided = false;
             }
-          } else {
-            pt.hasCollided = false;
-          }
 
-          if (
-            config.flowPattern === "diagonal" ||
-            config.flowPattern === "cardinal" ||
-            config.flowPattern === "waveFlow"
-          ) {
             pt.vx = p.lerp(pt.vx, targetVx + forceX, 0.05);
             pt.vy = p.lerp(pt.vy, targetVy + forceY, 0.05);
 
             pt.x += pt.vx;
             pt.y += pt.vy;
+
+            // Screen boundary wrap
+            if (
+              pt.x < -100 ||
+              pt.x > p.width + 100 ||
+              pt.y < -100 ||
+              pt.y > p.height + 100
+            ) {
+              pt.hasCollided = false;
+              if (baseDx >= 0 && baseDy >= 0) {
+                if (p.random(1) > 0.5) {
+                  pt.x = p.random(-40, p.width * 0.5);
+                  pt.y = -30;
+                } else {
+                  pt.x = -30;
+                  pt.y = p.random(-40, p.height * 0.5);
+                }
+              } else {
+                pt.x = p.random(-20, p.width + 20);
+                pt.y = p.random(-20, p.height + 20);
+              }
+            }
           }
 
           pt.rotation += pt.rotSpeed;
           pt.pulsePhase += 0.03;
-
-          // Screen wrap / recycling
-          if (
-            pt.x < -100 ||
-            pt.x > p.width + 100 ||
-            pt.y < -100 ||
-            pt.y > p.height + 100
-          ) {
-            pt.hasCollided = false;
-            if (baseDx >= 0 && baseDy >= 0) {
-              if (p.random(1) > 0.5) {
-                pt.x = p.random(-40, p.width * 0.5);
-                pt.y = -30;
-              } else {
-                pt.x = -30;
-                pt.y = p.random(-40, p.height * 0.5);
-              }
-            } else {
-              pt.x = p.random(-20, p.width + 20);
-              pt.y = p.random(-20, p.height + 20);
-            }
-          }
 
           p.push();
           p.translate(pt.x, pt.y);
