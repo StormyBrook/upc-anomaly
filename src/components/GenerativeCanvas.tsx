@@ -59,10 +59,9 @@ export const GenerativeCanvas: React.FC<GenerativeCanvasProps> = ({
         return config.colors.accent;
       };
 
-      // Determine single uniform shape for this entire anomaly stream
       const getUniformShape = (): ShapeArchetype => {
         if (config.shapeArchetype === "mixed") {
-          return "triangles"; // Default clean stream shape if mixed requested
+          return "triangles";
         }
         return config.shapeArchetype;
       };
@@ -210,7 +209,60 @@ export const GenerativeCanvas: React.FC<GenerativeCanvasProps> = ({
         for (let i = 0; i < particles.length; i++) {
           const pt = particles[i];
 
-          // Uniform motion logic for all particles
+          const noiseScale = config.particles.turbulence;
+          const noiseVal = p.noise(pt.x * noiseScale, pt.y * noiseScale, p.frameCount * 0.005);
+          const noiseAngle = noiseVal * p.TWO_PI * 2;
+
+          let forceX = Math.cos(noiseAngle) * 0.3 + config.particles.gravity.x;
+          let forceY = Math.sin(noiseAngle) * 0.3 + config.particles.gravity.y;
+
+          // Touch Physics Force Calculations
+          if (isPointerActive) {
+            const dx = ptrX - pt.x;
+            const dy = ptrY - pt.y;
+            const dist = Math.sqrt(dx * dx + dy * dy);
+            const radius = config.touch.radius;
+
+            if (dist < radius && dist > 0.001) {
+              const normFactor = (1 - dist / radius) * config.touch.force;
+
+              if (!pt.hasCollided && dist < radius * 0.35 && p.random(1) < 0.25) {
+                pt.hasCollided = true;
+                if (onParticleCollision) {
+                  const pitchRatio = (pt.x + pt.y) / (p.width + p.height);
+                  onParticleCollision(pitchRatio, pt.size);
+                }
+              }
+
+              switch (config.touch.mode) {
+                case "repel":
+                  forceX -= (dx / dist) * normFactor * 3.5;
+                  forceY -= (dy / dist) * normFactor * 3.5;
+                  break;
+                case "attract":
+                  forceX += (dx / dist) * normFactor * 2.5;
+                  forceY += (dy / dist) * normFactor * 2.5;
+                  break;
+                case "vortex":
+                  forceX += (-dy / dist) * normFactor * 4.0;
+                  forceY += (dx / dist) * normFactor * 4.0;
+                  break;
+                case "ripple":
+                  forceX += Math.sin(dist * 0.1) * normFactor * 3.0;
+                  forceY += Math.cos(dist * 0.1) * normFactor * 3.0;
+                  break;
+                case "orbit":
+                  forceX += ((-dy / dist) * 2.5 + (dx / dist) * 0.5) * normFactor;
+                  forceY += ((dx / dist) * 2.5 + (dy / dist) * 0.5) * normFactor;
+                  break;
+              }
+            } else {
+              pt.hasCollided = false;
+            }
+          } else {
+            pt.hasCollided = false;
+          }
+
           if (
             config.flowPattern === "spiralVortex" ||
             config.flowPattern === "radialBurst" ||
@@ -237,8 +289,12 @@ export const GenerativeCanvas: React.FC<GenerativeCanvasProps> = ({
               }
             }
 
-            pt.x = centerX + Math.cos(pt.radialAngle) * pt.distFromCenter;
-            pt.y = centerY + Math.sin(pt.radialAngle) * pt.distFromCenter;
+            // Radial base position + touch physics offset
+            const baseX = centerX + Math.cos(pt.radialAngle) * pt.distFromCenter;
+            const baseY = centerY + Math.sin(pt.radialAngle) * pt.distFromCenter;
+
+            pt.x = p.lerp(pt.x, baseX + forceX * 10, 0.1);
+            pt.y = p.lerp(pt.y, baseY + forceY * 10, 0.1);
           } else {
             // Linear, Cardinal, Wave Flow
             let targetVx = baseDx;
@@ -249,59 +305,6 @@ export const GenerativeCanvas: React.FC<GenerativeCanvasProps> = ({
               const amp = config.particles.waveAmplitude || 5.0;
               const waveVal = Math.sin(p.frameCount * freq + pt.x * 0.01) * amp;
               targetVy = baseDy + waveVal;
-            }
-
-            const noiseScale = config.particles.turbulence;
-            const noiseVal = p.noise(pt.x * noiseScale, pt.y * noiseScale, p.frameCount * 0.005);
-            const noiseAngle = noiseVal * p.TWO_PI * 2;
-
-            let forceX = Math.cos(noiseAngle) * 0.3 + config.particles.gravity.x;
-            let forceY = Math.sin(noiseAngle) * 0.3 + config.particles.gravity.y;
-
-            if (isPointerActive) {
-              const dx = ptrX - pt.x;
-              const dy = ptrY - pt.y;
-              const dist = Math.sqrt(dx * dx + dy * dy);
-              const radius = config.touch.radius;
-
-              if (dist < radius && dist > 0.001) {
-                const normFactor = (1 - dist / radius) * config.touch.force;
-
-                if (!pt.hasCollided && dist < radius * 0.35 && p.random(1) < 0.25) {
-                  pt.hasCollided = true;
-                  if (onParticleCollision) {
-                    const pitchRatio = (pt.x + pt.y) / (p.width + p.height);
-                    onParticleCollision(pitchRatio, pt.size);
-                  }
-                }
-
-                switch (config.touch.mode) {
-                  case "repel":
-                    forceX -= (dx / dist) * normFactor * 3;
-                    forceY -= (dy / dist) * normFactor * 3;
-                    break;
-                  case "attract":
-                    forceX += (dx / dist) * normFactor * 2;
-                    forceY += (dy / dist) * normFactor * 2;
-                    break;
-                  case "vortex":
-                    forceX += (-dy / dist) * normFactor * 3.5;
-                    forceY += (dx / dist) * normFactor * 3.5;
-                    break;
-                  case "ripple":
-                    forceX += Math.sin(dist * 0.1) * normFactor * 2.5;
-                    forceY += Math.cos(dist * 0.1) * normFactor * 2.5;
-                    break;
-                  case "orbit":
-                    forceX += ((-dy / dist) * 2 + (dx / dist) * 0.5) * normFactor;
-                    forceY += ((dx / dist) * 2 + (dy / dist) * 0.5) * normFactor;
-                    break;
-                }
-              } else {
-                pt.hasCollided = false;
-              }
-            } else {
-              pt.hasCollided = false;
             }
 
             pt.vx = p.lerp(pt.vx, targetVx + forceX, 0.05);
