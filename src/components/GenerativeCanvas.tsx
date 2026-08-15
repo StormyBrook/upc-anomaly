@@ -27,6 +27,8 @@ interface Particle {
   shapeType: ShapeArchetype;
   radialAngle: number;
   distFromCenter: number;
+  touchOffsetX: number;
+  touchOffsetY: number;
 }
 
 export const GenerativeCanvas: React.FC<GenerativeCanvasProps> = ({
@@ -69,12 +71,23 @@ export const GenerativeCanvas: React.FC<GenerativeCanvasProps> = ({
       const anomalyShape = getUniformShape();
 
       const createParticle = (x?: number, y?: number): Particle => {
-        const px = x !== undefined ? x : p.random(-50, p.width + 50);
-        const py = y !== undefined ? y : p.random(-50, p.height + 50);
-
         const sizeRand = Math.pow(p.random(0, 1), 2.8);
         const sz = config.particles.minSize + sizeRand * (config.particles.maxSize - config.particles.minSize);
         const rAngle = p.random(p.TWO_PI);
+
+        const cX = p.width * 0.5;
+        const cY = p.height * 0.5;
+        const maxR = Math.max(p.width, p.height) * 0.65;
+
+        let initialDist = p.random(5, maxR);
+        if (config.flowPattern === "radialBurst") {
+          initialDist = p.random(2, maxR);
+        } else if (config.flowPattern === "convergingCore") {
+          initialDist = p.random(5, maxR);
+        }
+
+        const px = x !== undefined ? x : cX + Math.cos(rAngle) * initialDist;
+        const py = y !== undefined ? y : cY + Math.sin(rAngle) * initialDist;
 
         return {
           x: px,
@@ -90,7 +103,9 @@ export const GenerativeCanvas: React.FC<GenerativeCanvasProps> = ({
           hasCollided: false,
           shapeType: anomalyShape,
           radialAngle: rAngle,
-          distFromCenter: p.random(5, Math.max(p.width, p.height) * 0.65),
+          distFromCenter: initialDist,
+          touchOffsetX: 0,
+          touchOffsetY: 0,
         };
       };
 
@@ -263,6 +278,9 @@ export const GenerativeCanvas: React.FC<GenerativeCanvasProps> = ({
             pt.hasCollided = false;
           }
 
+          pt.touchOffsetX = p.lerp(pt.touchOffsetX, forceX * 12, 0.1);
+          pt.touchOffsetY = p.lerp(pt.touchOffsetY, forceY * 12, 0.1);
+
           if (
             config.flowPattern === "spiralVortex" ||
             config.flowPattern === "radialBurst" ||
@@ -276,12 +294,14 @@ export const GenerativeCanvas: React.FC<GenerativeCanvasProps> = ({
                 pt.radialAngle = p.random(p.TWO_PI);
               }
             } else if (config.flowPattern === "radialBurst") {
+              // Outward stream: increase distance from center
               pt.distFromCenter += config.particles.speed * 1.2;
               if (pt.distFromCenter > maxRadius) {
                 pt.distFromCenter = p.random(2, 15);
                 pt.radialAngle = p.random(p.TWO_PI);
               }
             } else if (config.flowPattern === "convergingCore") {
+              // Inward stream: decrease distance towards center
               pt.distFromCenter -= config.particles.speed * 0.9;
               if (pt.distFromCenter < 5) {
                 pt.distFromCenter = maxRadius;
@@ -289,12 +309,9 @@ export const GenerativeCanvas: React.FC<GenerativeCanvasProps> = ({
               }
             }
 
-            // Radial base position + touch physics offset
-            const baseX = centerX + Math.cos(pt.radialAngle) * pt.distFromCenter;
-            const baseY = centerY + Math.sin(pt.radialAngle) * pt.distFromCenter;
-
-            pt.x = p.lerp(pt.x, baseX + forceX * 10, 0.1);
-            pt.y = p.lerp(pt.y, baseY + forceY * 10, 0.1);
+            // Directly calculate position from current distFromCenter, then apply touch offset
+            pt.x = centerX + Math.cos(pt.radialAngle) * pt.distFromCenter + pt.touchOffsetX;
+            pt.y = centerY + Math.sin(pt.radialAngle) * pt.distFromCenter + pt.touchOffsetY;
           } else {
             // Linear, Cardinal, Wave Flow
             let targetVx = baseDx;
