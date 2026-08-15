@@ -3,7 +3,7 @@ import { AnomalyConfig } from "./upcEngine";
 export class AudioEngine {
   private ctx: AudioContext | null = null;
   private masterGain: GainNode | null = null;
-  private isMuted: boolean = false; // Default to unmuted per request
+  private isMuted: boolean = false;
   private isInitialized: boolean = false;
 
   private filter: BiquadFilterNode | null = null;
@@ -27,7 +27,8 @@ export class AudioEngine {
     this.ctx = new AudioContextClass();
 
     this.masterGain = this.ctx.createGain();
-    this.masterGain.gain.setValueAtTime(this.isMuted ? 0 : 0.22, this.ctx.currentTime);
+    // Significantly increased master gain for crisp, audible sound
+    this.masterGain.gain.setValueAtTime(this.isMuted ? 0 : 0.65, this.ctx.currentTime);
     this.masterGain.connect(this.ctx.destination);
 
     this.isInitialized = true;
@@ -45,25 +46,25 @@ export class AudioEngine {
       this.filter.type = "lowpass";
       this.filter.connect(this.masterGain!);
     }
-    this.filter.frequency.setValueAtTime(config.audio.cutoffFreq, now);
-    this.filter.Q.setValueAtTime(config.audio.resonance, now);
+    // Set filter cutoff frequency to be higher and Q lower for richer, clearer tone
+    const openCutoff = Math.max(config.audio.cutoffFreq, 1800);
+    this.filter.frequency.setValueAtTime(openCutoff, now);
+    this.filter.Q.setValueAtTime(2.0, now);
 
     this.startArpeggioScheduler();
   }
 
-  // Rhythmic / Generative Chimes (Option 2) - Soft & Calming
   private startArpeggioScheduler() {
     this.stopArpeggioScheduler();
     if (this.isMuted) return;
 
-    const bpm = this.currentConfig?.audio.arpeggioBpm || 80;
-    const intervalMs = (60 / bpm) * 1000 * 0.75; // Slower cadence
+    const bpm = this.currentConfig?.audio.arpeggioBpm || 85;
+    const intervalMs = (60 / bpm) * 1000 * 0.65;
 
     this.arpeggioTimer = window.setInterval(() => {
       if (this.isMuted || !this.ctx || !this.currentConfig) return;
 
-      // Gentle intermittent chime drop
-      if (Math.random() > 0.35) return;
+      if (Math.random() > 0.45) return;
 
       const now = this.ctx.currentTime;
       const pitches = this.activePitches.length > 0 ? this.activePitches : [261, 329, 392, 523];
@@ -75,9 +76,10 @@ export class AudioEngine {
       osc.frequency.setValueAtTime(freq, now);
 
       const gain = this.ctx.createGain();
-      const vol = 0.035 + Math.random() * 0.04;
+      // Increased chime oscillator volume
+      const vol = 0.18 + Math.random() * 0.12;
       gain.gain.setValueAtTime(vol, now);
-      gain.gain.exponentialRampToValueAtTime(0.0005, now + 1.1);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + 1.2);
 
       osc.connect(gain);
       if (this.filter) {
@@ -87,7 +89,7 @@ export class AudioEngine {
       }
 
       osc.start(now);
-      osc.stop(now + 1.15);
+      osc.stop(now + 1.25);
     }, intervalMs);
   }
 
@@ -98,7 +100,6 @@ export class AudioEngine {
     }
   }
 
-  // Trigger sound when particle collides with finger/cursor - Slower & Calmer
   public triggerFingerCollision(pitchRatio: number, particleSize: number) {
     if (this.isMuted) return;
 
@@ -113,8 +114,7 @@ export class AudioEngine {
     }
 
     const now = this.ctx.currentTime;
-    // Increased throttle time to 220ms so collision sounds are spaced out & melodic
-    if (now - this.lastCollisionTime < 0.22) return;
+    if (now - this.lastCollisionTime < 0.15) return;
     this.lastCollisionTime = now;
 
     const pitches = this.activePitches.length > 0 ? this.activePitches : [261, 329, 392, 523, 659];
@@ -127,9 +127,10 @@ export class AudioEngine {
     osc.frequency.setValueAtTime(targetFreq * pitchModifier, now);
 
     const gain = this.ctx.createGain();
-    const volume = 0.05 + Math.min(particleSize / 60, 0.08);
+    // Increased collision sound volume
+    const volume = 0.22 + Math.min(particleSize / 50, 0.2);
     gain.gain.setValueAtTime(volume, now);
-    gain.gain.exponentialRampToValueAtTime(0.0005, now + 0.85);
+    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.9);
 
     osc.connect(gain);
     if (this.filter) {
@@ -139,12 +140,13 @@ export class AudioEngine {
     }
 
     osc.start(now);
-    osc.stop(now + 0.9);
+    osc.stop(now + 0.95);
   }
 
   public setTouchPan(normalizedX: number, normalizedY: number) {
     if (!this.ctx || !this.filter || !this.currentConfig || this.isMuted) return;
-    const cutoff = this.currentConfig.audio.cutoffFreq * (0.5 + normalizedY * 1.5);
+    const baseCutoff = Math.max(this.currentConfig.audio.cutoffFreq, 1800);
+    const cutoff = baseCutoff * (0.6 + normalizedY * 1.8);
     this.filter.frequency.setTargetAtTime(cutoff, this.ctx.currentTime, 0.05);
   }
 
@@ -161,7 +163,7 @@ export class AudioEngine {
       }
     } else {
       if (this.masterGain && this.ctx) {
-        this.masterGain.gain.setValueAtTime(0.22, this.ctx.currentTime);
+        this.masterGain.gain.setValueAtTime(0.65, this.ctx.currentTime);
       }
       if (this.currentConfig) {
         this.updateConfig(this.currentConfig);

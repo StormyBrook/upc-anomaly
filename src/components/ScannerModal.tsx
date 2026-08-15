@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useRef, useState, useCallback } from "react";
 import { Html5Qrcode, Html5QrcodeSupportedFormats } from "html5-qrcode";
 import { Camera, RefreshCw, X, AlertCircle } from "lucide-react";
 
@@ -19,6 +19,19 @@ export const ScannerModal: React.FC<ScannerModalProps> = ({
   const [facingMode, setFacingMode] = useState<"environment" | "user">("environment");
   const scannerRef = useRef<Html5Qrcode | null>(null);
   const containerId = "upc-reader-container";
+
+  const handleClose = useCallback(async () => {
+    if (scannerRef.current) {
+      try {
+        if (scannerRef.current.isScanning) {
+          await scannerRef.current.stop();
+        }
+      } catch (err) {
+        console.error("Error stopping scanner on close:", err);
+      }
+    }
+    onClose();
+  }, [onClose]);
 
   useEffect(() => {
     if (!isOpen) {
@@ -49,16 +62,12 @@ export const ScannerModal: React.FC<ScannerModalProps> = ({
       .start(
         { facingMode: facingMode },
         config,
-        (decodedText) => {
-          // Success
+        async (decodedText) => {
           onScanSuccess(decodedText);
-          html5QrCode
-            .stop()
-            .then(() => onClose())
-            .catch(() => onClose());
+          await handleClose();
         },
         () => {
-          // Scanning frame fail - normal during search
+          // Scanning frame fail - expected while searching
         }
       )
       .catch((err) => {
@@ -71,13 +80,15 @@ export const ScannerModal: React.FC<ScannerModalProps> = ({
         scannerRef.current.stop().catch((err) => console.error(err));
       }
     };
-  }, [isOpen, facingMode, onScanSuccess, onClose]);
+  }, [isOpen, facingMode, onScanSuccess, handleClose]);
 
   if (!isOpen) return null;
 
   const toggleCamera = () => {
     if (scannerRef.current && scannerRef.current.isScanning) {
       scannerRef.current.stop().then(() => {
+        setFacingMode((prev) => (prev === "environment" ? "user" : "environment"));
+      }).catch(() => {
         setFacingMode((prev) => (prev === "environment" ? "user" : "environment"));
       });
     } else {
@@ -97,7 +108,7 @@ export const ScannerModal: React.FC<ScannerModalProps> = ({
             </span>
           </div>
           <button
-            onClick={onClose}
+            onClick={handleClose}
             className="p-1.5 rounded-full text-zinc-400 hover:text-white hover:bg-zinc-800 transition-colors"
           >
             <X className="w-5 h-5" />
@@ -113,7 +124,7 @@ export const ScannerModal: React.FC<ScannerModalProps> = ({
               <AlertCircle className="w-12 h-12 text-rose-500 mb-3" />
               <p className="text-zinc-200 text-sm font-sans mb-4">{error}</p>
               <button
-                onClick={onClose}
+                onClick={handleClose}
                 className="px-4 py-2 bg-zinc-800 hover:bg-zinc-700 text-xs font-mono tracking-wider rounded-lg text-zinc-200 transition-colors"
               >
                 CLOSE

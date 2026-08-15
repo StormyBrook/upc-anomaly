@@ -77,7 +77,7 @@ export default function Home() {
       window.removeEventListener("touchstart", unlockAudio);
       audioEngineRef.current?.dispose();
     };
-  }, [config]);
+  }, []);
 
   const fetchProductMetadata = useCallback(async (code: string) => {
     setIsLookupLoading(true);
@@ -128,17 +128,22 @@ export default function Home() {
     handleUPCChange(sample.code);
   };
 
-  const handleCanvasPan = (nx: number, ny: number) => {
-    if (audioEngineRef.current && !isMuted) {
+  const isMutedRef = useRef(isMuted);
+  useEffect(() => {
+    isMutedRef.current = isMuted;
+  }, [isMuted]);
+
+  const handleCanvasPan = useCallback((nx: number, ny: number) => {
+    if (audioEngineRef.current && !isMutedRef.current) {
       audioEngineRef.current.setTouchPan(nx, ny);
     }
-  };
+  }, []);
 
-  const handleParticleCollision = (pitchRatio: number, size: number) => {
-    if (audioEngineRef.current && !isMuted) {
+  const handleParticleCollision = useCallback((pitchRatio: number, size: number) => {
+    if (audioEngineRef.current && !isMutedRef.current) {
       audioEngineRef.current.triggerFingerCollision(pitchRatio, size);
     }
-  };
+  }, []);
 
   const toggleAudio = () => {
     if (!audioEngineRef.current) return;
@@ -165,6 +170,10 @@ export default function Home() {
       setShowManualInput(false);
     }
   };
+
+  const displayName = productName
+    ? `${productName} // ${config.anomalyClass}`
+    : config.anomalyName;
 
   return (
     <main className="relative w-screen h-screen overflow-hidden bg-black font-sans">
@@ -203,7 +212,7 @@ export default function Home() {
                 ? "bg-cyan-500/20 border-cyan-400 text-cyan-300 shadow-cyan-500/20"
                 : "bg-zinc-900/90 border-zinc-700/60 text-zinc-400 hover:text-zinc-200"
             }`}
-            title={isMuted ? "Unmute Rhythmic Chimes" : "Mute Sound"}
+            title={isMuted ? "Unmute Sound" : "Mute Sound"}
           >
             {!isMuted ? <Volume2 className="w-5 h-5 animate-pulse" /> : <VolumeX className="w-5 h-5" />}
           </button>
@@ -228,18 +237,12 @@ export default function Home() {
           </div>
 
           <h2 className="text-base md:text-lg font-mono font-bold text-zinc-100 truncate px-2">
-            {productName || config.anomalyName}
+            {displayName}
           </h2>
 
           <div className="mt-2 flex flex-wrap items-center justify-center gap-1.5 font-mono text-[10px] text-zinc-400">
-            <span className="px-2 py-0.5 rounded bg-zinc-800/80 text-zinc-300">
+            <span className="px-2.5 py-1 rounded-md bg-zinc-800/90 text-zinc-200 font-bold border border-zinc-700/50">
               UPC: {upc}
-            </span>
-            <span className="px-2 py-0.5 rounded bg-zinc-800/80 text-cyan-300/90 capitalize flex items-center gap-1">
-              <Palette className="w-3 h-3 text-cyan-400" /> {config.colorThemeName}
-            </span>
-            <span className="px-2 py-0.5 rounded bg-zinc-800/80 text-indigo-300/90 capitalize flex items-center gap-1">
-              <Layers className="w-3 h-3 text-indigo-400" /> {config.shapeArchetype}
             </span>
           </div>
         </div>
