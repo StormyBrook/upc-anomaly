@@ -3,7 +3,7 @@ import { AnomalyConfig } from "./upcEngine";
 export class AudioEngine {
   private ctx: AudioContext | null = null;
   private masterGain: GainNode | null = null;
-  private isMuted: boolean = true;
+  private isMuted: boolean = false; // Default to unmuted per request
   private isInitialized: boolean = false;
 
   private filter: BiquadFilterNode | null = null;
@@ -51,19 +51,19 @@ export class AudioEngine {
     this.startArpeggioScheduler();
   }
 
-  // Rhythmic / Generative Chimes (Option 2)
+  // Rhythmic / Generative Chimes (Option 2) - Soft & Calming
   private startArpeggioScheduler() {
     this.stopArpeggioScheduler();
     if (this.isMuted) return;
 
     const bpm = this.currentConfig?.audio.arpeggioBpm || 80;
-    const intervalMs = (60 / bpm) * 1000 * 0.5; // Eighth notes
+    const intervalMs = (60 / bpm) * 1000 * 0.75; // Slower cadence
 
     this.arpeggioTimer = window.setInterval(() => {
       if (this.isMuted || !this.ctx || !this.currentConfig) return;
 
-      // Random chance to drop a chime in rhythm
-      if (Math.random() > 0.45) return;
+      // Gentle intermittent chime drop
+      if (Math.random() > 0.35) return;
 
       const now = this.ctx.currentTime;
       const pitches = this.activePitches.length > 0 ? this.activePitches : [261, 329, 392, 523];
@@ -75,9 +75,9 @@ export class AudioEngine {
       osc.frequency.setValueAtTime(freq, now);
 
       const gain = this.ctx.createGain();
-      const vol = 0.04 + Math.random() * 0.05;
+      const vol = 0.035 + Math.random() * 0.04;
       gain.gain.setValueAtTime(vol, now);
-      gain.gain.exponentialRampToValueAtTime(0.0005, now + 0.8);
+      gain.gain.exponentialRampToValueAtTime(0.0005, now + 1.1);
 
       osc.connect(gain);
       if (this.filter) {
@@ -87,7 +87,7 @@ export class AudioEngine {
       }
 
       osc.start(now);
-      osc.stop(now + 0.85);
+      osc.stop(now + 1.15);
     }, intervalMs);
   }
 
@@ -98,17 +98,23 @@ export class AudioEngine {
     }
   }
 
-  // Trigger sound when particle collides with finger/cursor
+  // Trigger sound when particle collides with finger/cursor - Slower & Calmer
   public triggerFingerCollision(pitchRatio: number, particleSize: number) {
-    if (!this.ctx || !this.currentConfig || this.isMuted) return;
+    if (this.isMuted) return;
+
+    if (!this.isInitialized) {
+      this.init();
+    }
+
+    if (!this.ctx || !this.currentConfig) return;
 
     if (this.ctx.state === "suspended") {
       this.ctx.resume();
     }
 
     const now = this.ctx.currentTime;
-    // Throttle collisions slightly so audio stays melodic and not noisy
-    if (now - this.lastCollisionTime < 0.05) return;
+    // Increased throttle time to 220ms so collision sounds are spaced out & melodic
+    if (now - this.lastCollisionTime < 0.22) return;
     this.lastCollisionTime = now;
 
     const pitches = this.activePitches.length > 0 ? this.activePitches : [261, 329, 392, 523, 659];
@@ -117,14 +123,13 @@ export class AudioEngine {
 
     const osc = this.ctx.createOscillator();
     osc.type = "sine";
-    // Smaller particles = higher pitch shift
-    const pitchModifier = 1 + (15 / Math.max(particleSize, 4)) * 0.1;
+    const pitchModifier = 1 + (15 / Math.max(particleSize, 4)) * 0.08;
     osc.frequency.setValueAtTime(targetFreq * pitchModifier, now);
 
     const gain = this.ctx.createGain();
-    const volume = 0.08 + Math.min(particleSize / 50, 0.12);
+    const volume = 0.05 + Math.min(particleSize / 60, 0.08);
     gain.gain.setValueAtTime(volume, now);
-    gain.gain.exponentialRampToValueAtTime(0.0008, now + 0.5);
+    gain.gain.exponentialRampToValueAtTime(0.0005, now + 0.85);
 
     osc.connect(gain);
     if (this.filter) {
@@ -134,7 +139,7 @@ export class AudioEngine {
     }
 
     osc.start(now);
-    osc.stop(now + 0.55);
+    osc.stop(now + 0.9);
   }
 
   public setTouchPan(normalizedX: number, normalizedY: number) {

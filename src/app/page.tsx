@@ -33,7 +33,7 @@ export default function Home() {
   const [showManualInput, setShowManualInput] = useState<boolean>(false);
   const [config, setConfig] = useState<AnomalyConfig>(() => parseUPCToConfig(DEFAULT_UPC));
   const [isScannerOpen, setIsScannerOpen] = useState<boolean>(false);
-  const [isMuted, setIsMuted] = useState<boolean>(true);
+  const [isMuted, setIsMuted] = useState<boolean>(false); // Unmuted by default per user request
   const [isDetailsOpen, setIsDetailsOpen] = useState<boolean>(false);
   const [productName, setProductName] = useState<string | null>(null);
   const [isLookupLoading, setIsLookupLoading] = useState<boolean>(false);
@@ -41,12 +41,29 @@ export default function Home() {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const audioEngineRef = useRef<AudioEngine | null>(null);
 
+  // Initialize audio engine instance and unlock WebAudio on first gesture
   useEffect(() => {
     audioEngineRef.current = new AudioEngine();
+    audioEngineRef.current.init();
+    audioEngineRef.current.updateConfig(config);
+
+    const unlockAudio = () => {
+      if (audioEngineRef.current) {
+        audioEngineRef.current.init();
+      }
+      window.removeEventListener("click", unlockAudio);
+      window.removeEventListener("touchstart", unlockAudio);
+    };
+
+    window.addEventListener("click", unlockAudio);
+    window.addEventListener("touchstart", unlockAudio);
+
     return () => {
+      window.removeEventListener("click", unlockAudio);
+      window.removeEventListener("touchstart", unlockAudio);
       audioEngineRef.current?.dispose();
     };
-  }, []);
+  }, [config]);
 
   const fetchProductMetadata = useCallback(async (code: string) => {
     setIsLookupLoading(true);

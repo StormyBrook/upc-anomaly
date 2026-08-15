@@ -60,7 +60,6 @@ export const GenerativeCanvas: React.FC<GenerativeCanvasProps> = ({
         const px = x !== undefined ? x : p.random(-50, p.width + 50);
         const py = y !== undefined ? y : p.random(-50, p.height + 50);
 
-        // Skewed particle size distribution: many more small triangles, few large
         const sizeRand = Math.pow(p.random(0, 1), 2.8);
         const sz = config.particles.minSize + sizeRand * (config.particles.maxSize - config.particles.minSize);
 
@@ -135,7 +134,6 @@ export const GenerativeCanvas: React.FC<GenerativeCanvasProps> = ({
           let forceX = Math.cos(noiseAngle) * 0.4 + config.particles.gravity.x;
           let forceY = Math.sin(noiseAngle) * 0.4 + config.particles.gravity.y;
 
-          // Finger collision detection
           if (isPointerActive) {
             const dx = ptrX - pt.x;
             const dy = ptrY - pt.y;
@@ -145,11 +143,13 @@ export const GenerativeCanvas: React.FC<GenerativeCanvasProps> = ({
             if (dist < radius && dist > 0.001) {
               const normFactor = (1 - dist / radius) * config.touch.force;
 
-              // Trigger sound when particle collides into finger/cursor range
-              if (!pt.hasCollided && onParticleCollision) {
+              // Finger collision detection - only trigger on direct close hit (~35% of radius) & ~25% chance
+              if (!pt.hasCollided && dist < radius * 0.35 && p.random(1) < 0.25) {
                 pt.hasCollided = true;
-                const pitchRatio = (pt.x + pt.y) / (p.width + p.height);
-                onParticleCollision(pitchRatio, pt.size);
+                if (onParticleCollision) {
+                  const pitchRatio = (pt.x + pt.y) / (p.width + p.height);
+                  onParticleCollision(pitchRatio, pt.size);
+                }
               }
 
               switch (config.touch.mode) {
@@ -189,7 +189,6 @@ export const GenerativeCanvas: React.FC<GenerativeCanvasProps> = ({
           pt.rotation += pt.rotSpeed;
           pt.pulsePhase += 0.03;
 
-          // Screen edge wrap
           if (
             pt.x < -100 ||
             pt.x > p.width + 100 ||
