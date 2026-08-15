@@ -70,8 +70,23 @@ export const GenerativeCanvas: React.FC<GenerativeCanvasProps> = ({
 
       const anomalyShape = getUniformShape();
 
-      // Compute off-screen spawning position covering ALL source edges
-      // so diagonal streams spawn across the full canvas width and height
+      // Check if current event target is an interactive UI overlay element (button, header, modal)
+      const isTargetingUI = (e?: Event): boolean => {
+        if (e && e.target) {
+          const target = e.target as HTMLElement;
+          if (
+            target.tagName === "BUTTON" ||
+            target.tagName === "INPUT" ||
+            target.closest("button") ||
+            target.closest("header") ||
+            target.closest(".fixed")
+          ) {
+            return true;
+          }
+        }
+        return false;
+      };
+
       const getOffscreenPosition = (): { x: number; y: number } => {
         const margin = 80;
         const w = p.width;
@@ -83,12 +98,10 @@ export const GenerativeCanvas: React.FC<GenerativeCanvasProps> = ({
         const spawnFromHorizontalEdge = p.random(1) < (w / (w + h));
 
         if (spawnFromHorizontalEdge) {
-          // Spawn along top or bottom edge depending on vertical direction
           const py = vy >= 0 ? -p.random(10, margin * 2) : h + p.random(10, margin * 2);
           const px = p.random(-margin, w + margin);
           return { x: px, y: py };
         } else {
-          // Spawn along left or right edge depending on horizontal direction
           const px = vx >= 0 ? -p.random(10, margin * 2) : w + p.random(10, margin * 2);
           const py = p.random(-margin, h + margin);
           return { x: px, y: py };
@@ -256,7 +269,11 @@ export const GenerativeCanvas: React.FC<GenerativeCanvasProps> = ({
           p.blendMode(p.BLEND);
         }
 
-        const isPointerActive = p.mouseIsPressed || p.touches.length > 0;
+        // Only activate touch forces if pointer is pressed AND NOT targeting UI elements
+        const activeEvt = (p as unknown as { _storeEvents?: { mouseEvent?: Event; touchEvent?: Event } })._storeEvents?.mouseEvent ||
+          (p as unknown as { _storeEvents?: { touchEvent?: Event } })._storeEvents?.touchEvent;
+
+        const isPointerActive = (p.mouseIsPressed || p.touches.length > 0) && !isTargetingUI(activeEvt);
         const ptrX = p.mouseX;
         const ptrY = p.mouseY;
         const centerX = p.width * 0.5;
@@ -372,7 +389,7 @@ export const GenerativeCanvas: React.FC<GenerativeCanvasProps> = ({
             pt.x += pt.vx;
             pt.y += pt.vy;
 
-            // Screen boundary wrap: recycle particle back off-screen along source L-edges
+            // Screen boundary wrap
             const margin = 120;
             if (
               pt.x < -margin ||
@@ -403,7 +420,8 @@ export const GenerativeCanvas: React.FC<GenerativeCanvasProps> = ({
         p.blendMode(p.BLEND);
       };
 
-      p.mousePressed = () => {
+      p.mousePressed = (e?: Event) => {
+        if (isTargetingUI(e)) return;
         if (
           p.mouseX >= 0 &&
           p.mouseX <= p.width &&
