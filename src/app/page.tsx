@@ -175,6 +175,10 @@ export default function Home() {
     ? `${productName} // ${config.anomalyClass}`
     : config.anomalyName;
 
+  const preventCanvasPropagation = (e: React.PointerEvent | React.TouchEvent | React.MouseEvent) => {
+    e.stopPropagation();
+  };
+
   return (
     <main className="relative w-screen h-screen overflow-hidden bg-black font-sans">
       <GenerativeCanvas
@@ -185,6 +189,8 @@ export default function Home() {
       />
 
       <header
+        onPointerDown={preventCanvasPropagation}
+        onTouchStart={preventCanvasPropagation}
         className="fixed top-0 left-0 right-0 z-50 flex items-center justify-between p-4 md:p-6 pointer-events-none"
         style={{
           background: "linear-gradient(to bottom, rgba(0,0,0,0.85), rgba(0,0,0,0.4), transparent)",
@@ -227,7 +233,11 @@ export default function Home() {
         </div>
       </header>
 
-      <div className="fixed top-20 left-1/2 -translate-x-1/2 z-40 w-11/12 max-w-lg pointer-events-none">
+      <div
+        onPointerDown={preventCanvasPropagation}
+        onTouchStart={preventCanvasPropagation}
+        className="fixed top-20 left-1/2 -translate-x-1/2 z-40 w-11/12 max-w-lg pointer-events-none"
+      >
         <div className="bg-zinc-950/90 border border-zinc-800/90 backdrop-blur-xl rounded-2xl p-4 shadow-2xl text-center pointer-events-auto transition-all duration-300 hover:border-zinc-700">
           <div className="flex items-center justify-center space-x-2 text-[10px] font-mono uppercase tracking-widest text-cyan-400 mb-1">
             <Globe className="w-3.5 h-3.5" />
@@ -248,7 +258,11 @@ export default function Home() {
         </div>
       </div>
 
-      <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 flex flex-col items-center space-y-3 w-full max-w-sm px-4">
+      <div
+        onPointerDown={preventCanvasPropagation}
+        onTouchStart={preventCanvasPropagation}
+        className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 flex flex-col items-center space-y-3 w-full max-w-sm px-4"
+      >
         <button
           onClick={() => setIsScannerOpen(true)}
           style={{
@@ -314,7 +328,11 @@ export default function Home() {
       </div>
 
       {isDetailsOpen && (
-        <div className="fixed bottom-32 left-1/2 -translate-x-1/2 z-50 w-11/12 max-w-md bg-zinc-950/95 border border-zinc-800 backdrop-blur-2xl rounded-2xl p-5 shadow-2xl text-xs font-mono text-zinc-300 animate-in fade-in slide-in-from-bottom-4 duration-200">
+        <div
+          onPointerDown={preventCanvasPropagation}
+          onTouchStart={preventCanvasPropagation}
+          className="fixed bottom-32 left-1/2 -translate-x-1/2 z-50 w-11/12 max-w-md bg-zinc-950/95 border border-zinc-800 backdrop-blur-2xl rounded-2xl p-5 shadow-2xl text-xs font-mono text-zinc-300 animate-in fade-in slide-in-from-bottom-4 duration-200"
+        >
           <div className="flex items-center justify-between border-b border-zinc-800 pb-2 mb-3">
             <span className="text-cyan-400 font-bold uppercase tracking-wider flex items-center gap-1.5">
               <Info className="w-4 h-4" /> REVEALED ANOMALY SPECS

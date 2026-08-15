@@ -70,21 +70,26 @@ export const GenerativeCanvas: React.FC<GenerativeCanvasProps> = ({
 
       const anomalyShape = getUniformShape();
 
-      // Check if current event target is an interactive UI overlay element (button, header, modal)
-      const isTargetingUI = (e?: Event): boolean => {
-        if (e && e.target) {
-          const target = e.target as HTMLElement;
-          if (
-            target.tagName === "BUTTON" ||
-            target.tagName === "INPUT" ||
-            target.closest("button") ||
-            target.closest("header") ||
-            target.closest(".fixed")
-          ) {
-            return true;
-          }
+      // Check if element directly under cursor/finger is the canvas element itself
+      const isCursorOverCanvas = (): boolean => {
+        if (typeof document === "undefined") return true;
+        const elem = document.elementFromPoint(p.mouseX, p.mouseY);
+        if (!elem) return true;
+
+        // If element is BUTTON, INPUT, SVG, or inside header/fixed overlay, NOT canvas
+        const tag = elem.tagName.toUpperCase();
+        if (
+          tag === "BUTTON" ||
+          tag === "INPUT" ||
+          tag === "SVG" ||
+          tag === "PATH" ||
+          elem.closest("button") ||
+          elem.closest("header") ||
+          elem.closest(".fixed")
+        ) {
+          return false;
         }
-        return false;
+        return elem.tagName.toUpperCase() === "CANVAS" || elem === containerRef.current;
       };
 
       const getOffscreenPosition = (): { x: number; y: number } => {
@@ -269,11 +274,8 @@ export const GenerativeCanvas: React.FC<GenerativeCanvasProps> = ({
           p.blendMode(p.BLEND);
         }
 
-        // Only activate touch forces if pointer is pressed AND NOT targeting UI elements
-        const activeEvt = (p as unknown as { _storeEvents?: { mouseEvent?: Event; touchEvent?: Event } })._storeEvents?.mouseEvent ||
-          (p as unknown as { _storeEvents?: { touchEvent?: Event } })._storeEvents?.touchEvent;
-
-        const isPointerActive = (p.mouseIsPressed || p.touches.length > 0) && !isTargetingUI(activeEvt);
+        // Strictly verify that the pointer is pressed AND targeting the canvas element directly
+        const isPointerActive = (p.mouseIsPressed || p.touches.length > 0) && isCursorOverCanvas();
         const ptrX = p.mouseX;
         const ptrY = p.mouseY;
         const centerX = p.width * 0.5;
@@ -420,8 +422,8 @@ export const GenerativeCanvas: React.FC<GenerativeCanvasProps> = ({
         p.blendMode(p.BLEND);
       };
 
-      p.mousePressed = (e?: Event) => {
-        if (isTargetingUI(e)) return;
+      p.mousePressed = () => {
+        if (!isCursorOverCanvas()) return;
         if (
           p.mouseX >= 0 &&
           p.mouseX <= p.width &&
