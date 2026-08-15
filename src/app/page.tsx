@@ -104,22 +104,16 @@ export default function Home() {
     fetchProductMetadata(DEFAULT_UPC);
   }, [fetchProductMetadata]);
 
-  // Canvas interaction callbacks - Strictly respects mute state
-  const handleCanvasTouch = (nx: number, ny: number) => {
-    if (audioEngineRef.current && !isMuted) {
-      audioEngineRef.current.triggerTouchTone(nx, ny);
-    }
-  };
-
+  // Canvas interaction callbacks
   const handleCanvasPan = (nx: number, ny: number) => {
     if (audioEngineRef.current && !isMuted) {
       audioEngineRef.current.setTouchPan(nx, ny);
     }
   };
 
-  const handleParticleEvent = (pitchRatio: number, intensity: number) => {
+  const handleParticleCollision = (pitchRatio: number, size: number) => {
     if (audioEngineRef.current && !isMuted) {
-      audioEngineRef.current.triggerParticleChime(pitchRatio, intensity);
+      audioEngineRef.current.triggerFingerCollision(pitchRatio, size);
     }
   };
 
@@ -154,9 +148,8 @@ export default function Home() {
     <main className="relative w-screen h-screen overflow-hidden bg-black font-sans">
       <GenerativeCanvas
         config={config}
-        onCanvasTouch={handleCanvasTouch}
         onCanvasPan={handleCanvasPan}
-        onParticleEvent={handleParticleEvent}
+        onParticleCollision={handleParticleCollision}
         canvasRefOut={canvasRef}
       />
 
@@ -188,7 +181,7 @@ export default function Home() {
                 ? "bg-cyan-500/20 border-cyan-400 text-cyan-300 shadow-cyan-500/20"
                 : "bg-zinc-900/90 border-zinc-700/60 text-zinc-400 hover:text-zinc-200"
             }`}
-            title={isMuted ? "Unmute Ambient Chimes" : "Mute Sound"}
+            title={isMuted ? "Unmute Rhythmic Chimes" : "Mute Sound"}
           >
             {!isMuted ? <Volume2 className="w-5 h-5 animate-pulse" /> : <VolumeX className="w-5 h-5" />}
           </button>
@@ -321,10 +314,8 @@ export default function Home() {
               <div className="text-zinc-200 font-bold capitalize">{config.audio.scale}</div>
             </div>
             <div className="bg-zinc-900/60 p-2.5 rounded-lg border border-zinc-800">
-              <div className="text-zinc-500 mb-0.5">SYNTH OSCILLATORS</div>
-              <div className="text-zinc-200 font-bold uppercase">
-                {config.audio.osc1Type} / {config.audio.osc2Type}
-              </div>
+              <div className="text-zinc-500 mb-0.5">SYNTH TEMPO</div>
+              <div className="text-zinc-200 font-bold">{config.audio.arpeggioBpm} BPM</div>
             </div>
           </div>
         </div>

@@ -3,13 +3,16 @@ import { AnomalyConfig } from "./upcEngine";
 export class AudioEngine {
   private ctx: AudioContext | null = null;
   private masterGain: GainNode | null = null;
-  private isMuted: boolean = true; // Default muted until user explicitly toggles
+  private isMuted: boolean = true;
   private isInitialized: boolean = false;
 
   private filter: BiquadFilterNode | null = null;
   private activePitches: number[] = [];
   private currentConfig: AnomalyConfig | null = null;
-  private lastChimeTime: number = 0;
+
+  private arpeggioTimer: number | null = null;
+  private arpeggioStep: number = 0;
+  private lastCollisionTime: number = 0;
 
   public init() {
     if (this.isInitialized && this.ctx) {
@@ -24,7 +27,7 @@ export class AudioEngine {
     this.ctx = new AudioContextClass();
 
     this.masterGain = this.ctx.createGain();
-    this.masterGain.gain.setValueAtTime(this.isMuted ? 0 : 0.25, this.ctx.currentTime);
+    this.masterGain.gain.setValueAtTime(this.isMuted ? 0 : 0.22, this.ctx.currentTime);
     this.masterGain.connect(this.ctx.destination);
 
     this.isInitialized = true;
@@ -37,7 +40,6 @@ export class AudioEngine {
     const now = this.ctx.currentTime;
     this.activePitches = config.audio.scaleNotes;
 
-    // Filter setup
     if (!this.filter) {
       this.filter = this.ctx.createBiquadFilter();
       this.filter.type = "lowpass";
@@ -45,10 +47,59 @@ export class AudioEngine {
     }
     this.filter.frequency.setValueAtTime(config.audio.cutoffFreq, now);
     this.filter.Q.setValueAtTime(config.audio.resonance, now);
+
+    this.startArpeggioScheduler();
   }
 
-  // Trigger particle event sound (e.g. particle edge wrap or flow acceleration)
-  public triggerParticleChime(pitchRatio: number, intensity: number = 1.0) {
+  // Rhythmic / Generative Chimes (Option 2)
+  private startArpeggioScheduler() {
+    this.stopArpeggioScheduler();
+    if (this.isMuted) return;
+
+    const bpm = this.currentConfig?.audio.arpeggioBpm || 80;
+    const intervalMs = (60 / bpm) * 1000 * 0.5; // Eighth notes
+
+    this.arpeggioTimer = window.setInterval(() => {
+      if (this.isMuted || !this.ctx || !this.currentConfig) return;
+
+      // Random chance to drop a chime in rhythm
+      if (Math.random() > 0.45) return;
+
+      const now = this.ctx.currentTime;
+      const pitches = this.activePitches.length > 0 ? this.activePitches : [261, 329, 392, 523];
+      this.arpeggioStep = (this.arpeggioStep + Math.floor(Math.random() * 3) + 1) % pitches.length;
+      const freq = pitches[this.arpeggioStep];
+
+      const osc = this.ctx.createOscillator();
+      osc.type = "sine";
+      osc.frequency.setValueAtTime(freq, now);
+
+      const gain = this.ctx.createGain();
+      const vol = 0.04 + Math.random() * 0.05;
+      gain.gain.setValueAtTime(vol, now);
+      gain.gain.exponentialRampToValueAtTime(0.0005, now + 0.8);
+
+      osc.connect(gain);
+      if (this.filter) {
+        gain.connect(this.filter);
+      } else {
+        gain.connect(this.masterGain!);
+      }
+
+      osc.start(now);
+      osc.stop(now + 0.85);
+    }, intervalMs);
+  }
+
+  private stopArpeggioScheduler() {
+    if (this.arpeggioTimer !== null) {
+      clearInterval(this.arpeggioTimer);
+      this.arpeggioTimer = null;
+    }
+  }
+
+  // Trigger sound when particle collides with finger/cursor
+  public triggerFingerCollision(pitchRatio: number, particleSize: number) {
     if (!this.ctx || !this.currentConfig || this.isMuted) return;
 
     if (this.ctx.state === "suspended") {
@@ -56,65 +107,34 @@ export class AudioEngine {
     }
 
     const now = this.ctx.currentTime;
-    // Throttle chimes slightly so sound remains pleasant & crisp
-    if (now - this.lastChimeTime < 0.08) return;
-    this.lastChimeTime = now;
+    // Throttle collisions slightly so audio stays melodic and not noisy
+    if (now - this.lastCollisionTime < 0.05) return;
+    this.lastCollisionTime = now;
 
-    const pitches = this.activePitches.length > 0 ? this.activePitches : [220, 330, 440];
+    const pitches = this.activePitches.length > 0 ? this.activePitches : [261, 329, 392, 523, 659];
     const pitchIndex = Math.floor(Math.min(Math.max(pitchRatio, 0), 0.99) * pitches.length);
     const targetFreq = pitches[pitchIndex] || this.currentConfig.audio.rootFreq;
 
     const osc = this.ctx.createOscillator();
-    osc.type = this.currentConfig.audio.osc1Type === "square" ? "triangle" : this.currentConfig.audio.osc1Type;
-    osc.frequency.setValueAtTime(targetFreq, now);
+    osc.type = "sine";
+    // Smaller particles = higher pitch shift
+    const pitchModifier = 1 + (15 / Math.max(particleSize, 4)) * 0.1;
+    osc.frequency.setValueAtTime(targetFreq * pitchModifier, now);
 
     const gain = this.ctx.createGain();
-    const vol = Math.min(0.08 * intensity, 0.25);
-    gain.gain.setValueAtTime(vol, now);
-    gain.gain.exponentialRampToValueAtTime(0.0005, now + 0.6);
+    const volume = 0.08 + Math.min(particleSize / 50, 0.12);
+    gain.gain.setValueAtTime(volume, now);
+    gain.gain.exponentialRampToValueAtTime(0.0008, now + 0.5);
 
     osc.connect(gain);
     if (this.filter) {
       gain.connect(this.filter);
-    } else if (this.masterGain) {
-      gain.connect(this.masterGain);
+    } else {
+      gain.connect(this.masterGain!);
     }
 
     osc.start(now);
-    osc.stop(now + 0.65);
-  }
-
-  // Trigger a harmonic tone when touching canvas (ONLY when unmuted)
-  public triggerTouchTone(normalizedX: number, normalizedY: number) {
-    if (!this.ctx || !this.currentConfig || this.isMuted) return;
-
-    if (this.ctx.state === "suspended") {
-      this.ctx.resume();
-    }
-
-    const now = this.ctx.currentTime;
-    const pitches = this.activePitches.length > 0 ? this.activePitches : [220, 330, 440];
-    const noteIndex = Math.floor(Math.min(Math.max(normalizedX, 0), 0.99) * pitches.length);
-    const targetFreq = pitches[noteIndex] || this.currentConfig.audio.rootFreq;
-
-    const pluckOsc = this.ctx.createOscillator();
-    pluckOsc.type = "sine";
-    pluckOsc.frequency.setValueAtTime(targetFreq, now);
-
-    const pluckGain = this.ctx.createGain();
-    const volume = 0.12 + (1 - normalizedY) * 0.18;
-    pluckGain.gain.setValueAtTime(volume, now);
-    pluckGain.gain.exponentialRampToValueAtTime(0.001, now + 0.9);
-
-    pluckOsc.connect(pluckGain);
-    if (this.filter) {
-      pluckGain.connect(this.filter);
-    } else if (this.masterGain) {
-      pluckGain.connect(this.masterGain);
-    }
-
-    pluckOsc.start(now);
-    pluckOsc.stop(now + 0.95);
+    osc.stop(now + 0.55);
   }
 
   public setTouchPan(normalizedX: number, normalizedY: number) {
@@ -128,9 +148,21 @@ export class AudioEngine {
     if (!this.isInitialized) {
       this.init();
     }
-    if (this.masterGain && this.ctx) {
-      this.masterGain.gain.setValueAtTime(this.isMuted ? 0 : 0.25, this.ctx.currentTime);
+
+    if (this.isMuted) {
+      this.stopArpeggioScheduler();
+      if (this.masterGain && this.ctx) {
+        this.masterGain.gain.setValueAtTime(0, this.ctx.currentTime);
+      }
+    } else {
+      if (this.masterGain && this.ctx) {
+        this.masterGain.gain.setValueAtTime(0.22, this.ctx.currentTime);
+      }
+      if (this.currentConfig) {
+        this.updateConfig(this.currentConfig);
+      }
     }
+
     return this.isMuted;
   }
 
@@ -139,6 +171,7 @@ export class AudioEngine {
   }
 
   public dispose() {
+    this.stopArpeggioScheduler();
     if (this.ctx) {
       this.ctx.close();
       this.ctx = null;

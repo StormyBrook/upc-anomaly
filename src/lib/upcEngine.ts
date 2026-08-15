@@ -64,6 +64,7 @@ export interface AnomalyConfig {
     lfoRate: number; // Hz (0.1 - 8.0)
     detune: number; // cents (-25 to +25)
     reverbDecay: number; // seconds
+    arpeggioBpm: number; // BPM for option 2 rhythmic chimes
   };
 }
 
@@ -85,23 +86,19 @@ class SeededRandom {
     this.seed = seed;
   }
 
-  // Returns float between 0 and 1
   next(): number {
     this.seed = (this.seed * 9301 + 49297) % 233280;
     return this.seed / 233280;
   }
 
-  // Returns range [min, max)
   range(min: number, max: number): number {
     return min + this.next() * (max - min);
   }
 
-  // Returns integer [min, max]
   rangeInt(min: number, max: number): number {
     return Math.floor(this.range(min, max + 1));
   }
 
-  // Choice from array
   pick<T>(arr: T[]): T {
     return arr[Math.floor(this.next() * arr.length)];
   }
@@ -140,30 +137,25 @@ export function parseUPCToConfig(upcInput: string): AnomalyConfig {
   const numericHash = hashUPC(upc);
   const rng = new SeededRandom(numericHash);
 
-  // Generate procedural designation
   const greekIndex = numericHash % CODE_GREEK.length;
   const anomalyClass = ANOMALY_CLASSES[numericHash % ANOMALY_CLASSES.length];
   const shortCode = upc.slice(-4) || "0000";
   const defaultName = `${anomalyClass} [SIG-${CODE_GREEK[greekIndex]}-${shortCode}]`;
 
-  // Colors
   const baseHue = rng.range(0, 360);
   const secondaryHue = (baseHue + rng.range(30, 180)) % 360;
   const accentHue = (baseHue + rng.range(120, 240)) % 360;
 
   const bgHue = (baseHue + 180) % 360;
   const bgSat = rng.range(10, 35);
-  const bgLight = rng.range(2, 8); // Very dark background
+  const bgLight = rng.range(2, 8);
 
-  // Flow direction (diagonal: 15 to 75 deg or 195 to 255 deg)
   const isReverse = rng.next() > 0.5;
   const baseAngle = isReverse ? rng.range(195, 255) : rng.range(15, 75);
 
-  // Touch Mode
   const touchModes: TouchMode[] = ["repel", "attract", "vortex", "ripple", "orbit"];
   const touchMode = rng.pick(touchModes);
 
-  // Audio Scale
   const scales: ScaleType[] = [
     "minorPentatonic",
     "lydian",
@@ -173,12 +165,12 @@ export function parseUPCToConfig(upcInput: string): AnomalyConfig {
     "ambientMajor",
   ];
   const scaleType = rng.pick(scales);
-  const rootNote = rng.rangeInt(36, 52); // Low to mid pitch C2 - E3
+  const rootNote = rng.rangeInt(48, 64); // C3 - E4 higher chime scale
   const scaleFrequencies = SCALE_INTERVALS[scaleType].map((interval) =>
     midiToFreq(rootNote + interval)
   );
 
-  const oscTypes: OscillatorType[] = ["sine", "triangle", "sawtooth", "square"];
+  const oscTypes: OscillatorType[] = ["sine", "triangle"];
 
   return {
     upc,
@@ -199,24 +191,24 @@ export function parseUPCToConfig(upcInput: string): AnomalyConfig {
       blendMode: rng.pick(["source-over", "screen", "additive"] as const),
     },
     particles: {
-      count: rng.rangeInt(180, 500),
-      minSize: rng.range(6, 14),
-      maxSize: rng.range(24, 60),
+      count: rng.rangeInt(300, 650), // Denser count of small particles
+      minSize: rng.range(4, 8),      // Much smaller min size
+      maxSize: rng.range(18, 38),    // Max size capped
       flowAngleDegrees: baseAngle,
-      speed: rng.range(1.2, 5.5),
+      speed: rng.range(1.5, 5.8),
       gravity: {
         x: rng.range(-0.08, 0.08),
         y: rng.range(0.02, 0.25),
       },
       turbulence: rng.range(0.002, 0.015),
       spinSpeed: rng.range(-0.08, 0.08),
-      trailFade: rng.rangeInt(15, 60), // Lower value = longer glowing trails
-      wireframeRatio: rng.range(0.1, 0.45),
+      trailFade: rng.rangeInt(18, 55),
+      wireframeRatio: rng.range(0.15, 0.5),
     },
     touch: {
       mode: touchMode,
-      radius: rng.range(120, 280),
-      force: rng.range(2.5, 8.0),
+      radius: rng.range(120, 260),
+      force: rng.range(3.0, 8.5),
     },
     audio: {
       rootNote,
@@ -225,11 +217,12 @@ export function parseUPCToConfig(upcInput: string): AnomalyConfig {
       scaleNotes: scaleFrequencies,
       osc1Type: rng.pick(oscTypes),
       osc2Type: rng.pick(oscTypes),
-      cutoffFreq: rng.range(250, 2500),
-      resonance: rng.range(1.0, 8.0),
-      lfoRate: rng.range(0.2, 3.5),
-      detune: rng.range(-15, 15),
+      cutoffFreq: rng.range(400, 3500),
+      resonance: rng.range(1.0, 6.0),
+      lfoRate: rng.range(0.2, 2.5),
+      detune: rng.range(-10, 10),
       reverbDecay: rng.range(1.5, 4.5),
+      arpeggioBpm: rng.rangeInt(60, 120),
     },
   };
 }

@@ -8,7 +8,7 @@ interface GenerativeCanvasProps {
   config: AnomalyConfig;
   onCanvasTouch?: (normalizedX: number, normalizedY: number) => void;
   onCanvasPan?: (normalizedX: number, normalizedY: number) => void;
-  onParticleEvent?: (pitchRatio: number, intensity: number) => void;
+  onParticleCollision?: (pitchRatio: number, size: number) => void;
   canvasRefOut?: React.MutableRefObject<HTMLCanvasElement | null>;
 }
 
@@ -23,13 +23,14 @@ interface Particle {
   color: ColorHSLA;
   isWireframe: boolean;
   pulsePhase: number;
+  hasCollided: boolean;
 }
 
 export const GenerativeCanvas: React.FC<GenerativeCanvasProps> = ({
   config,
   onCanvasTouch,
   onCanvasPan,
-  onParticleEvent,
+  onParticleCollision,
   canvasRefOut,
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -58,7 +59,11 @@ export const GenerativeCanvas: React.FC<GenerativeCanvasProps> = ({
       const createParticle = (x?: number, y?: number): Particle => {
         const px = x !== undefined ? x : p.random(-50, p.width + 50);
         const py = y !== undefined ? y : p.random(-50, p.height + 50);
-        const sz = p.random(config.particles.minSize, config.particles.maxSize);
+
+        // Skewed particle size distribution: many more small triangles, few large
+        const sizeRand = Math.pow(p.random(0, 1), 2.8);
+        const sz = config.particles.minSize + sizeRand * (config.particles.maxSize - config.particles.minSize);
+
         return {
           x: px,
           y: py,
@@ -70,6 +75,7 @@ export const GenerativeCanvas: React.FC<GenerativeCanvasProps> = ({
           color: pickColor(),
           isWireframe: p.random(1) < config.particles.wireframeRatio,
           pulsePhase: p.random(p.TWO_PI),
+          hasCollided: false,
         };
       };
 
@@ -129,6 +135,7 @@ export const GenerativeCanvas: React.FC<GenerativeCanvasProps> = ({
           let forceX = Math.cos(noiseAngle) * 0.4 + config.particles.gravity.x;
           let forceY = Math.sin(noiseAngle) * 0.4 + config.particles.gravity.y;
 
+          // Finger collision detection
           if (isPointerActive) {
             const dx = ptrX - pt.x;
             const dy = ptrY - pt.y;
@@ -137,6 +144,13 @@ export const GenerativeCanvas: React.FC<GenerativeCanvasProps> = ({
 
             if (dist < radius && dist > 0.001) {
               const normFactor = (1 - dist / radius) * config.touch.force;
+
+              // Trigger sound when particle collides into finger/cursor range
+              if (!pt.hasCollided && onParticleCollision) {
+                pt.hasCollided = true;
+                const pitchRatio = (pt.x + pt.y) / (p.width + p.height);
+                onParticleCollision(pitchRatio, pt.size);
+              }
 
               switch (config.touch.mode) {
                 case "repel":
@@ -160,7 +174,11 @@ export const GenerativeCanvas: React.FC<GenerativeCanvasProps> = ({
                   forceY += ((dx / dist) * 2 + (dy / dist) * 0.5) * normFactor;
                   break;
               }
+            } else {
+              pt.hasCollided = false;
             }
+          } else {
+            pt.hasCollided = false;
           }
 
           pt.vx = p.lerp(pt.vx, baseDx + forceX, 0.05);
@@ -171,18 +189,14 @@ export const GenerativeCanvas: React.FC<GenerativeCanvasProps> = ({
           pt.rotation += pt.rotSpeed;
           pt.pulsePhase += 0.03;
 
-          // Check for screen boundary wrap or center pass events to play soft chimes
+          // Screen edge wrap
           if (
             pt.x < -100 ||
             pt.x > p.width + 100 ||
             pt.y < -100 ||
             pt.y > p.height + 100
           ) {
-            if (onParticleEvent) {
-              const pitchRatio = (pt.x + pt.y) / (p.width + p.height);
-              onParticleEvent(pitchRatio, 1.0);
-            }
-
+            pt.hasCollided = false;
             if (baseDx >= 0 && baseDy >= 0) {
               if (p.random(1) > 0.5) {
                 pt.x = p.random(-40, p.width * 0.5);
@@ -259,7 +273,7 @@ export const GenerativeCanvas: React.FC<GenerativeCanvasProps> = ({
         p5InstanceRef.current.remove();
       }
     };
-  }, [config, onCanvasTouch, onCanvasPan, onParticleEvent, canvasRefOut]);
+  }, [config, onCanvasTouch, onCanvasPan, onParticleCollision, canvasRefOut]);
 
   return <div ref={containerRef} className="absolute inset-0 w-full h-full touch-none select-none overflow-hidden" />;
 };
