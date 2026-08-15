@@ -110,7 +110,6 @@ export interface AnomalyConfig {
   };
 }
 
-// Simple FNV-1a hash for deterministic numbers from UPC
 export function hashUPC(upc: string): number {
   let hash = 2166136261;
   for (let i = 0; i < upc.length; i++) {
@@ -120,7 +119,6 @@ export function hashUPC(upc: string): number {
   return hash >>> 0;
 }
 
-// Pseudorandom number generator using seeded hash
 class SeededRandom {
   private seed: number;
 
@@ -259,7 +257,6 @@ export function parseUPCToConfig(upcInput: string): AnomalyConfig {
   const shortCode = upc.slice(-4) || "0000";
   const defaultName = `${anomalyClass} [SIG-${CODE_GREEK[greekIndex]}-${shortCode}]`;
 
-  // Flow Pattern Assignment
   const flowPatterns: FlowPattern[] = [
     "diagonal",
     "cardinal",
@@ -270,7 +267,6 @@ export function parseUPCToConfig(upcInput: string): AnomalyConfig {
   ];
   const flowPattern = rng.pick(flowPatterns);
 
-  // Shape Archetype Assignment
   const shapeArchetypes: ShapeArchetype[] = [
     "triangles",
     "diamonds",
@@ -282,13 +278,10 @@ export function parseUPCToConfig(upcInput: string): AnomalyConfig {
   ];
   const shapeArchetype = rng.pick(shapeArchetypes);
 
-  // Curated Color Palette Theme Assignment
   const palette = rng.pick(COLOR_PALETTES);
 
-  // Motion Angle
   const flowAngleDegrees = rng.range(0, 360);
 
-  // Audio Scale
   const scales: ScaleType[] = [
     "minorPentatonic",
     "lydian",
@@ -323,21 +316,22 @@ export function parseUPCToConfig(upcInput: string): AnomalyConfig {
       blendMode: palette.blendMode,
     },
     particles: {
-      count: rng.rangeInt(280, 600),
+      count: rng.rangeInt(240, 520),
       minSize: rng.range(4, 9),
-      maxSize: rng.range(20, 42),
+      maxSize: rng.range(18, 38),
       flowAngleDegrees,
-      speed: rng.range(1.6, 6.0),
+      speed: rng.range(1.4, 5.0),
       gravity: {
-        x: rng.range(-0.1, 0.1),
-        y: rng.range(-0.1, 0.2),
+        x: rng.range(-0.08, 0.08),
+        y: rng.range(-0.08, 0.15),
       },
-      turbulence: rng.range(0.002, 0.015),
-      spinSpeed: rng.range(-0.09, 0.09),
-      trailFade: rng.rangeInt(18, 55),
+      turbulence: rng.range(0.002, 0.012),
+      spinSpeed: rng.range(-0.07, 0.07),
+      // Higher trailFade value (55 - 120 / 255) clears trails faster for cleaner, non-nauseating motion
+      trailFade: rng.rangeInt(55, 120),
       wireframeRatio: rng.range(0.15, 0.5),
-      waveFrequency: rng.range(0.02, 0.08),
-      waveAmplitude: rng.range(2.0, 8.0),
+      waveFrequency: rng.range(0.02, 0.07),
+      waveAmplitude: rng.range(2.0, 7.0),
     },
     touch: {
       mode: rng.pick(touchModes),

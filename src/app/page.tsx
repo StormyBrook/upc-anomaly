@@ -29,16 +29,16 @@ const GenerativeCanvas = dynamic(
 );
 
 const SAMPLE_UPCS = [
-  { code: "012000000133", label: "Mountain Dew Citrus Soda" },
-  { code: "028000516005", label: "Nestle Toll House Morsels" },
-  { code: "049000028904", label: "Sprite Zero Sugar Soda" },
-  { code: "037000185683", label: "Tide Original Detergent Pods" },
-  { code: "088590995080", label: "Apple AirPods Wireless Case" },
-  { code: "011110082470", label: "Kroger Organic Whole Milk" },
-  { code: "078742351864", label: "Great Value Clover Honey" },
-  { code: "036000291452", label: "Kleenex Ultra Facial Tissue" },
-  { code: "042600000008", label: "Polar Seltzer Lime Water" },
-  { code: "021130070267", label: "Lucerne Sweet Cream Butter" },
+  { code: "025000040502", label: "Simply Orange Juice" },
+  { code: "012000163173", label: "Pepsi Cola Classic" },
+  { code: "044000032029", label: "Oreo Chocolate Cookies" },
+  { code: "038000138416", label: "Kellogg's Pop-Tarts" },
+  { code: "016000275263", label: "Honey Nut Cheerios" },
+  { code: "052000338778", label: "Gatorade Cool Blue" },
+  { code: "070470003005", label: "Chobani Greek Yogurt" },
+  { code: "034000002465", label: "Hershey's Milk Chocolate" },
+  { code: "073852000118", label: "LaCroix Sparkling Water" },
+  { code: "070847811169", label: "Monster Energy Drink" },
 ];
 
 export default function Home() {
