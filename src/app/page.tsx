@@ -20,6 +20,7 @@ import {
   Layers,
   Compass,
   Palette,
+  Shuffle,
 } from "lucide-react";
 import confetti from "canvas-confetti";
 
@@ -28,13 +29,26 @@ const GenerativeCanvas = dynamic(
   { ssr: false }
 );
 
-const DEFAULT_UPC = "042600000008";
+// 10 diverse sample UPC codes for instant testing
+const SAMPLE_UPCS = [
+  { code: "042600000008", label: "Polar Seltzer Water" },
+  { code: "012000000133", label: "Mountain Dew Soda" },
+  { code: "028000516005", label: "Nestle Toll House" },
+  { code: "011110082470", label: "Kroger Organic Milk" },
+  { code: "078742351864", label: "Great Value Honey" },
+  { code: "036000291452", label: "Kleenex Facial Tissue" },
+  { code: "049000028904", label: "Sprite Zero Sugar" },
+  { code: "037000185683", label: "Tide Laundry Detergent" },
+  { code: "021130070267", label: "Lucerne Sweet Butter" },
+  { code: "088590995080", label: "Apple AirPods Pro Case" },
+];
 
 export default function Home() {
-  const [upc, setUpc] = useState<string>(DEFAULT_UPC);
+  const [sampleIndex, setSampleIndex] = useState<number>(0);
+  const [upc, setUpc] = useState<string>(SAMPLE_UPCS[0].code);
   const [inputUpc, setInputUpc] = useState<string>("");
   const [showManualInput, setShowManualInput] = useState<boolean>(false);
-  const [config, setConfig] = useState<AnomalyConfig>(() => parseUPCToConfig(DEFAULT_UPC));
+  const [config, setConfig] = useState<AnomalyConfig>(() => parseUPCToConfig(SAMPLE_UPCS[0].code));
   const [isScannerOpen, setIsScannerOpen] = useState<boolean>(false);
   const [isMuted, setIsMuted] = useState<boolean>(false);
   const [isDetailsOpen, setIsDetailsOpen] = useState<boolean>(false);
@@ -120,10 +134,17 @@ export default function Home() {
   );
 
   useEffect(() => {
-    fetchProductMetadata(DEFAULT_UPC);
+    fetchProductMetadata(SAMPLE_UPCS[0].code);
   }, [fetchProductMetadata]);
 
-  // Canvas interaction callbacks
+  // Cycle through sample UPCs
+  const handleCycleSample = () => {
+    const nextIdx = (sampleIndex + 1) % SAMPLE_UPCS.length;
+    setSampleIndex(nextIdx);
+    const sample = SAMPLE_UPCS[nextIdx];
+    handleUPCChange(sample.code);
+  };
+
   const handleCanvasPan = (nx: number, ny: number) => {
     if (audioEngineRef.current && !isMuted) {
       audioEngineRef.current.setTouchPan(nx, ny);
@@ -136,7 +157,6 @@ export default function Home() {
     }
   };
 
-  // Toggle audio
   const toggleAudio = () => {
     if (!audioEngineRef.current) return;
     const muted = audioEngineRef.current.toggleMute();
@@ -243,6 +263,7 @@ export default function Home() {
       </div>
 
       <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 flex flex-col items-center space-y-3 w-full max-w-sm px-4">
+        {/* Main Camera Scan Button */}
         <button
           onClick={() => setIsScannerOpen(true)}
           style={{
@@ -250,13 +271,23 @@ export default function Home() {
             color: "#000000",
             boxShadow: "0 10px 25px -5px rgba(6, 182, 212, 0.4)",
           }}
-          className="w-full py-4 px-6 rounded-2xl font-mono font-bold text-sm tracking-wider uppercase flex items-center justify-center space-x-3 transition-all transform active:scale-95 cursor-pointer hover:brightness-110"
+          className="w-full py-3.5 px-6 rounded-2xl font-mono font-bold text-sm tracking-wider uppercase flex items-center justify-center space-x-3 transition-all transform active:scale-95 cursor-pointer hover:brightness-110"
         >
           <Camera className="w-5 h-5 text-black" />
           <span>SCAN UPC BARCODE</span>
         </button>
 
+        {/* Action Row: Sample Preset Switcher, Manual Entry & Specs Inspector */}
         <div className="flex items-center space-x-2 w-full justify-center">
+          <button
+            onClick={handleCycleSample}
+            className="flex items-center space-x-1.5 px-3 py-2 rounded-xl bg-cyan-950/80 border border-cyan-800/80 backdrop-blur-md text-xs font-mono text-cyan-300 hover:text-white hover:bg-cyan-900/80 transition-colors cursor-pointer shadow-lg"
+            title="Switch through 10 sample UPC codes"
+          >
+            <Shuffle className="w-3.5 h-3.5 text-cyan-400 animate-spin-once" />
+            <span>SAMPLE #{sampleIndex + 1}/10</span>
+          </button>
+
           <button
             onClick={() => setShowManualInput(!showManualInput)}
             className="flex items-center space-x-1.5 px-3 py-2 rounded-xl bg-zinc-950/90 border border-zinc-800 backdrop-blur-md text-xs font-mono text-zinc-300 hover:text-white transition-colors cursor-pointer"
