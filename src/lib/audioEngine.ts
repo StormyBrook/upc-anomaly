@@ -11,8 +11,11 @@ export class AudioEngine {
   private currentConfig: AnomalyConfig | null = null;
 
   private arpeggioTimer: number | null = null;
-  private arpeggioStep: number = 0;
+  private sequenceStep: number = 0;
   private lastCollisionTime: number = 0;
+
+  // 8-step melodic arpeggio motif sequence (index offsets into activePitches)
+  private readonly MELODIC_PATTERN: number[] = [0, 2, 4, 1, 3, 5, 2, 4];
 
   public init() {
     if (this.isInitialized && this.ctx) {
@@ -27,7 +30,6 @@ export class AudioEngine {
     this.ctx = new AudioContextClass();
 
     this.masterGain = this.ctx.createGain();
-    // Significantly increased master gain for crisp, audible sound
     this.masterGain.gain.setValueAtTime(this.isMuted ? 0 : 0.65, this.ctx.currentTime);
     this.masterGain.connect(this.ctx.destination);
 
@@ -46,7 +48,7 @@ export class AudioEngine {
       this.filter.type = "lowpass";
       this.filter.connect(this.masterGain!);
     }
-    // Set filter cutoff frequency to be higher and Q lower for richer, clearer tone
+
     const openCutoff = Math.max(config.audio.cutoffFreq, 1800);
     this.filter.frequency.setValueAtTime(openCutoff, now);
     this.filter.Q.setValueAtTime(2.0, now);
@@ -54,32 +56,41 @@ export class AudioEngine {
     this.startArpeggioScheduler();
   }
 
+  // Structured, Rhythmic Step Sequencer
   private startArpeggioScheduler() {
     this.stopArpeggioScheduler();
     if (this.isMuted) return;
 
-    const bpm = this.currentConfig?.audio.arpeggioBpm || 85;
-    const intervalMs = (60 / bpm) * 1000 * 0.65;
+    const bpm = this.currentConfig?.audio.arpeggioBpm || 90;
+    // Steady 16th/8th note subdivision timing based on BPM
+    const intervalMs = (60 / bpm) * 1000 * 0.5;
+
+    this.sequenceStep = 0;
 
     this.arpeggioTimer = window.setInterval(() => {
       if (this.isMuted || !this.ctx || !this.currentConfig) return;
 
-      if (Math.random() > 0.45) return;
-
       const now = this.ctx.currentTime;
-      const pitches = this.activePitches.length > 0 ? this.activePitches : [261, 329, 392, 523];
-      this.arpeggioStep = (this.arpeggioStep + Math.floor(Math.random() * 3) + 1) % pitches.length;
-      const freq = pitches[this.arpeggioStep];
+      const pitches = this.activePitches.length > 0 ? this.activePitches : [261, 329, 392, 523, 659, 784];
+
+      // Retrieve pattern index for current step in rhythmic loop
+      const patternIndex = this.MELODIC_PATTERN[this.sequenceStep % this.MELODIC_PATTERN.length];
+      const pitchIndex = patternIndex % pitches.length;
+      const freq = pitches[pitchIndex];
+
+      this.sequenceStep++;
 
       const osc = this.ctx.createOscillator();
       osc.type = "sine";
       osc.frequency.setValueAtTime(freq, now);
 
       const gain = this.ctx.createGain();
-      // Increased chime oscillator volume
-      const vol = 0.18 + Math.random() * 0.12;
+      // Steady, rhythmic volume pulse with subtle accent on beat 1 & 5
+      const isAccent = (this.sequenceStep % 4) === 1;
+      const vol = isAccent ? 0.22 : 0.16;
+
       gain.gain.setValueAtTime(vol, now);
-      gain.gain.exponentialRampToValueAtTime(0.001, now + 1.2);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.65);
 
       osc.connect(gain);
       if (this.filter) {
@@ -89,7 +100,7 @@ export class AudioEngine {
       }
 
       osc.start(now);
-      osc.stop(now + 1.25);
+      osc.stop(now + 0.7);
     }, intervalMs);
   }
 
@@ -127,7 +138,6 @@ export class AudioEngine {
     osc.frequency.setValueAtTime(targetFreq * pitchModifier, now);
 
     const gain = this.ctx.createGain();
-    // Increased collision sound volume
     const volume = 0.22 + Math.min(particleSize / 50, 0.2);
     gain.gain.setValueAtTime(volume, now);
     gain.gain.exponentialRampToValueAtTime(0.001, now + 0.9);
