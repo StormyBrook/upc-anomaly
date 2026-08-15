@@ -70,7 +70,50 @@ export const GenerativeCanvas: React.FC<GenerativeCanvasProps> = ({
 
       const anomalyShape = getUniformShape();
 
-      const createParticle = (x?: number, y?: number): Particle => {
+      // Helper to compute an off-screen spawning position based on flow angle/velocity
+      const getOffscreenPosition = (): { x: number; y: number } => {
+        const margin = 80;
+        const w = p.width;
+        const h = p.height;
+
+        // Base velocity vector determines entry side
+        const vx = baseDx;
+        const vy = baseDy;
+
+        if (Math.abs(vx) > Math.abs(vy)) {
+          // Primarily horizontal movement
+          if (vx >= 0) {
+            // Moving right -> spawn on left edge
+            return {
+              x: -p.random(20, margin * 3),
+              y: p.random(-margin, h + margin),
+            };
+          } else {
+            // Moving left -> spawn on right edge
+            return {
+              x: w + p.random(20, margin * 3),
+              y: p.random(-margin, h + margin),
+            };
+          }
+        } else {
+          // Primarily vertical movement
+          if (vy >= 0) {
+            // Moving down -> spawn on top edge
+            return {
+              x: p.random(-margin, w + margin),
+              y: -p.random(20, margin * 3),
+            };
+          } else {
+            // Moving up -> spawn on bottom edge
+            return {
+              x: p.random(-margin, w + margin),
+              y: h + p.random(20, margin * 3),
+            };
+          }
+        }
+      };
+
+      const createParticle = (forceOffscreen = false): Particle => {
         const sizeRand = Math.pow(p.random(0, 1), 2.8);
         const sz = config.particles.minSize + sizeRand * (config.particles.maxSize - config.particles.minSize);
         const rAngle = p.random(p.TWO_PI);
@@ -79,15 +122,31 @@ export const GenerativeCanvas: React.FC<GenerativeCanvasProps> = ({
         const cY = p.height * 0.5;
         const maxR = Math.max(p.width, p.height) * 0.65;
 
-        let initialDist = p.random(5, maxR);
-        if (config.flowPattern === "radialBurst") {
-          initialDist = p.random(2, maxR);
-        } else if (config.flowPattern === "convergingCore") {
-          initialDist = p.random(5, maxR);
-        }
+        let px = 0;
+        let py = 0;
+        let initialDist = 0;
 
-        const px = x !== undefined ? x : cX + Math.cos(rAngle) * initialDist;
-        const py = y !== undefined ? y : cY + Math.sin(rAngle) * initialDist;
+        const isRadial =
+          config.flowPattern === "spiralVortex" ||
+          config.flowPattern === "radialBurst" ||
+          config.flowPattern === "convergingCore";
+
+        if (isRadial) {
+          if (config.flowPattern === "radialBurst") {
+            initialDist = p.random(2, maxR);
+          } else if (config.flowPattern === "convergingCore") {
+            initialDist = p.random(5, maxR);
+          } else {
+            initialDist = p.random(2, maxR);
+          }
+          px = cX + Math.cos(rAngle) * initialDist;
+          py = cY + Math.sin(rAngle) * initialDist;
+        } else {
+          // Off-canvas stream spawning for directional flows
+          const pos = getOffscreenPosition();
+          px = pos.x;
+          py = pos.y;
+        }
 
         return {
           x: px,
@@ -231,7 +290,6 @@ export const GenerativeCanvas: React.FC<GenerativeCanvasProps> = ({
           let forceX = Math.cos(noiseAngle) * 0.3 + config.particles.gravity.x;
           let forceY = Math.sin(noiseAngle) * 0.3 + config.particles.gravity.y;
 
-          // Touch Physics Force Calculations
           if (isPointerActive) {
             const dx = ptrX - pt.x;
             const dy = ptrY - pt.y;
@@ -294,14 +352,12 @@ export const GenerativeCanvas: React.FC<GenerativeCanvasProps> = ({
                 pt.radialAngle = p.random(p.TWO_PI);
               }
             } else if (config.flowPattern === "radialBurst") {
-              // Outward stream: increase distance from center
               pt.distFromCenter += config.particles.speed * 1.2;
               if (pt.distFromCenter > maxRadius) {
                 pt.distFromCenter = p.random(2, 15);
                 pt.radialAngle = p.random(p.TWO_PI);
               }
             } else if (config.flowPattern === "convergingCore") {
-              // Inward stream: decrease distance towards center
               pt.distFromCenter -= config.particles.speed * 0.9;
               if (pt.distFromCenter < 5) {
                 pt.distFromCenter = maxRadius;
@@ -309,7 +365,6 @@ export const GenerativeCanvas: React.FC<GenerativeCanvasProps> = ({
               }
             }
 
-            // Directly calculate position from current distFromCenter, then apply touch offset
             pt.x = centerX + Math.cos(pt.radialAngle) * pt.distFromCenter + pt.touchOffsetX;
             pt.y = centerY + Math.sin(pt.radialAngle) * pt.distFromCenter + pt.touchOffsetY;
           } else {
@@ -330,26 +385,18 @@ export const GenerativeCanvas: React.FC<GenerativeCanvasProps> = ({
             pt.x += pt.vx;
             pt.y += pt.vy;
 
-            // Screen boundary wrap
+            // Screen boundary wrap: recycle particle back off-screen
+            const margin = 120;
             if (
-              pt.x < -100 ||
-              pt.x > p.width + 100 ||
-              pt.y < -100 ||
-              pt.y > p.height + 100
+              pt.x < -margin ||
+              pt.x > p.width + margin ||
+              pt.y < -margin ||
+              pt.y > p.height + margin
             ) {
               pt.hasCollided = false;
-              if (baseDx >= 0 && baseDy >= 0) {
-                if (p.random(1) > 0.5) {
-                  pt.x = p.random(-40, p.width * 0.5);
-                  pt.y = -30;
-                } else {
-                  pt.x = -30;
-                  pt.y = p.random(-40, p.height * 0.5);
-                }
-              } else {
-                pt.x = p.random(-20, p.width + 20);
-                pt.y = p.random(-20, p.height + 20);
-              }
+              const newPos = getOffscreenPosition();
+              pt.x = newPos.x;
+              pt.y = newPos.y;
             }
           }
 
