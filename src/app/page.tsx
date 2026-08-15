@@ -29,16 +29,16 @@ const GenerativeCanvas = dynamic(
 );
 
 const SAMPLE_UPCS = [
-  { code: "025000040502", label: "Simply Orange Juice" },
-  { code: "012000163173", label: "Pepsi Cola Classic" },
-  { code: "044000032029", label: "Oreo Chocolate Cookies" },
-  { code: "038000138416", label: "Kellogg's Pop-Tarts" },
-  { code: "016000275263", label: "Honey Nut Cheerios" },
-  { code: "052000338778", label: "Gatorade Cool Blue" },
-  { code: "070470003005", label: "Chobani Greek Yogurt" },
-  { code: "034000002465", label: "Hershey's Milk Chocolate" },
-  { code: "073852000118", label: "LaCroix Sparkling Water" },
-  { code: "070847811169", label: "Monster Energy Drink" },
+  { code: "000000000010", label: "Neon Cyberpunk Anomaly" },      // Neon Cyberpunk
+  { code: "000000000011", label: "Thermal Infrared Anomaly" },    // Thermal Infrared
+  { code: "000000000007", label: "Bioluminescent Deep Anomaly" }, // Bioluminescent Deep
+  { code: "000000000006", label: "Acid Monochrome Anomaly" },     // Acid Monochrome
+  { code: "000000000005", label: "Solar Flare Anomaly" },          // Solar Flare
+  { code: "000000000004", label: "Synthwave Sunset Anomaly" },     // Synthwave Sunset
+  { code: "000000000003", label: "Void Prism Anomaly" },            // Void Prism
+  { code: "000000000002", label: "Vaporwave Pastel Anomaly" },     // Vaporwave Pastel
+  { code: "000000000000", label: "Supernova Core Anomaly" },      // Supernova Core
+  { code: "012000163173", label: "Pepsi Cola Classic" },          // Pepsi Cola Product Sample
 ];
 
 export default function Home() {
