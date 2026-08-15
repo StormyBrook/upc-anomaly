@@ -12,7 +12,6 @@ import {
   Download,
   Info,
   Sliders,
-  Sparkles,
   ChevronUp,
   ChevronDown,
   Globe,
@@ -188,55 +187,38 @@ export default function Home() {
         canvasRefOut={canvasRef}
       />
 
-      <header
-        onPointerDown={preventCanvasPropagation}
-        onTouchStart={preventCanvasPropagation}
-        className="fixed top-0 left-0 right-0 z-50 flex items-center justify-between p-4 md:p-6 pointer-events-none"
-        style={{
-          background: "linear-gradient(to bottom, rgba(0,0,0,0.85), rgba(0,0,0,0.4), transparent)",
-        }}
-      >
-        <div className="flex items-center space-x-3 pointer-events-auto">
-          <div className="p-2 rounded-xl bg-zinc-900/90 border border-zinc-700/60 backdrop-blur-md shadow-lg flex items-center justify-center text-cyan-400">
-            <Sparkles className="w-5 h-5 animate-pulse" />
-          </div>
-          <div>
-            <h1 className="text-sm font-mono tracking-wider text-zinc-100 font-bold uppercase drop-shadow-md">
-              ANOMALY // VISUALIZER
-            </h1>
-            <p className="text-[11px] font-mono text-zinc-400 tracking-tight">
-              SCAN SPACE BETWEEN CODES
-            </p>
-          </div>
-        </div>
-
-        <div className="flex items-center space-x-2 pointer-events-auto">
-          <button
-            onClick={toggleAudio}
-            className={`p-3 rounded-full border backdrop-blur-md transition-all duration-300 flex items-center justify-center shadow-lg ${
-              !isMuted
-                ? "bg-cyan-500/20 border-cyan-400 text-cyan-300 shadow-cyan-500/20"
-                : "bg-zinc-900/90 border-zinc-700/60 text-zinc-400 hover:text-zinc-200"
-            }`}
-            title={isMuted ? "Unmute Sound" : "Mute Sound"}
-          >
-            {!isMuted ? <Volume2 className="w-5 h-5 animate-pulse" /> : <VolumeX className="w-5 h-5" />}
-          </button>
-
-          <button
-            onClick={handleDownloadImage}
-            className="p-3 rounded-full bg-zinc-900/90 border border-zinc-700/60 text-zinc-300 hover:text-white backdrop-blur-md transition-all shadow-lg hover:bg-zinc-800"
-            title="Download PNG Frame"
-          >
-            <Download className="w-5 h-5" />
-          </button>
-        </div>
-      </header>
-
+      {/* Top Controls (Mute & Download) */}
       <div
         onPointerDown={preventCanvasPropagation}
         onTouchStart={preventCanvasPropagation}
-        className="fixed top-20 left-1/2 -translate-x-1/2 z-40 w-11/12 max-w-lg pointer-events-none"
+        className="fixed top-4 right-4 z-50 flex items-center space-x-2 pointer-events-auto"
+      >
+        <button
+          onClick={toggleAudio}
+          className={`p-3 rounded-full border backdrop-blur-md transition-all duration-300 flex items-center justify-center shadow-lg ${
+            !isMuted
+              ? "bg-cyan-500/20 border-cyan-400 text-cyan-300 shadow-cyan-500/20"
+              : "bg-zinc-900/90 border-zinc-700/60 text-zinc-400 hover:text-zinc-200"
+          }`}
+          title={isMuted ? "Unmute Sound" : "Mute Sound"}
+        >
+          {!isMuted ? <Volume2 className="w-5 h-5 animate-pulse" /> : <VolumeX className="w-5 h-5" />}
+        </button>
+
+        <button
+          onClick={handleDownloadImage}
+          className="p-3 rounded-full bg-zinc-900/90 border border-zinc-700/60 text-zinc-300 hover:text-white backdrop-blur-md transition-all shadow-lg hover:bg-zinc-800"
+          title="Download PNG Frame"
+        >
+          <Download className="w-5 h-5" />
+        </button>
+      </div>
+
+      {/* Designation Bar shifted to the very top */}
+      <div
+        onPointerDown={preventCanvasPropagation}
+        onTouchStart={preventCanvasPropagation}
+        className="fixed top-4 left-1/2 -translate-x-1/2 z-40 w-11/12 max-w-lg pointer-events-none"
       >
         <div className="bg-zinc-950/90 border border-zinc-800/90 backdrop-blur-xl rounded-2xl p-4 shadow-2xl text-center pointer-events-auto transition-all duration-300 hover:border-zinc-700">
           <div className="flex items-center justify-center space-x-2 text-[10px] font-mono uppercase tracking-widest text-cyan-400 mb-1">
