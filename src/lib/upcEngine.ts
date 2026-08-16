@@ -300,6 +300,14 @@ export function parseUPCToConfig(upcInput: string): AnomalyConfig {
 
   const touchModes: TouchMode[] = ["repel", "attract", "vortex", "ripple", "orbit"];
 
+  const speed = rng.range(1.4, 5.0);
+
+  // Directly correlate synth tempo (BPM) with stream speed:
+  // Speed 1.4 -> ~65 BPM (slower, serene)
+  // Speed 5.0 -> ~170 BPM (fast, energetic)
+  const normalizedSpeedRatio = (speed - 1.4) / (5.0 - 1.4);
+  const arpeggioBpm = Math.round(65 + normalizedSpeedRatio * 105);
+
   return {
     upc,
     hash: numericHash,
@@ -320,14 +328,13 @@ export function parseUPCToConfig(upcInput: string): AnomalyConfig {
       minSize: rng.range(4, 9),
       maxSize: rng.range(18, 38),
       flowAngleDegrees,
-      speed: rng.range(1.4, 5.0),
+      speed,
       gravity: {
         x: rng.range(-0.08, 0.08),
         y: rng.range(-0.08, 0.15),
       },
       turbulence: rng.range(0.002, 0.012),
       spinSpeed: rng.range(-0.07, 0.07),
-      // Higher trailFade value (55 - 120 / 255) clears trails faster for cleaner, non-nauseating motion
       trailFade: rng.rangeInt(55, 120),
       wireframeRatio: rng.range(0.15, 0.5),
       waveFrequency: rng.range(0.02, 0.07),
@@ -350,7 +357,7 @@ export function parseUPCToConfig(upcInput: string): AnomalyConfig {
       lfoRate: rng.range(0.2, 2.5),
       detune: rng.range(-10, 10),
       reverbDecay: rng.range(1.5, 4.5),
-      arpeggioBpm: rng.rangeInt(65, 125),
+      arpeggioBpm,
     },
   };
 }

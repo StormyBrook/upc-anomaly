@@ -56,13 +56,13 @@ export class AudioEngine {
     this.startArpeggioScheduler();
   }
 
-  // Structured, Rhythmic Step Sequencer
+  // Structured, Rhythmic Step Sequencer directly bound to stream speed/BPM
   private startArpeggioScheduler() {
     this.stopArpeggioScheduler();
     if (this.isMuted) return;
 
     const bpm = this.currentConfig?.audio.arpeggioBpm || 90;
-    // Steady 16th/8th note subdivision timing based on BPM
+    // Step timing inversely scales with BPM (higher BPM = faster arpeggio step rate)
     const intervalMs = (60 / bpm) * 1000 * 0.5;
 
     this.sequenceStep = 0;
@@ -73,7 +73,6 @@ export class AudioEngine {
       const now = this.ctx.currentTime;
       const pitches = this.activePitches.length > 0 ? this.activePitches : [261, 329, 392, 523, 659, 784];
 
-      // Retrieve pattern index for current step in rhythmic loop
       const patternIndex = this.MELODIC_PATTERN[this.sequenceStep % this.MELODIC_PATTERN.length];
       const pitchIndex = patternIndex % pitches.length;
       const freq = pitches[pitchIndex];
@@ -85,12 +84,13 @@ export class AudioEngine {
       osc.frequency.setValueAtTime(freq, now);
 
       const gain = this.ctx.createGain();
-      // Steady, rhythmic volume pulse with subtle accent on beat 1 & 5
       const isAccent = (this.sequenceStep % 4) === 1;
       const vol = isAccent ? 0.22 : 0.16;
 
+      const noteDuration = Math.min((intervalMs / 1000) * 0.9, 0.65);
+
       gain.gain.setValueAtTime(vol, now);
-      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.65);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + noteDuration);
 
       osc.connect(gain);
       if (this.filter) {
@@ -100,7 +100,7 @@ export class AudioEngine {
       }
 
       osc.start(now);
-      osc.stop(now + 0.7);
+      osc.stop(now + noteDuration + 0.05);
     }, intervalMs);
   }
 
