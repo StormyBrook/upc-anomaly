@@ -54,8 +54,26 @@ export default function Home() {
   const [productName, setProductName] = useState<string | null>(null);
   const [isLookupLoading, setIsLookupLoading] = useState<boolean>(false);
 
+  // Hidden/Developer Sample Mode State
+  const [isDevSamplesEnabled, setIsDevSamplesEnabled] = useState<boolean>(false);
+  const lastTapRef = useRef<number>(0);
+
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const audioEngineRef = useRef<AudioEngine | null>(null);
+
+  // Check URL parameters and localStorage for developer sample mode
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const params = new URLSearchParams(window.location.search);
+      const devParam = params.get("dev") || params.get("debug") || params.get("samples");
+      const storedDev = localStorage.getItem("upc_anomaly_dev_mode");
+
+      if (devParam === "true" || devParam === "1" || storedDev === "true") {
+        setIsDevSamplesEnabled(true);
+        localStorage.setItem("upc_anomaly_dev_mode", "true");
+      }
+    }
+  }, []);
 
   useEffect(() => {
     audioEngineRef.current = new AudioEngine();
@@ -127,6 +145,23 @@ export default function Home() {
     setSampleIndex(nextIdx);
     const sample = SAMPLE_UPCS[nextIdx];
     handleUPCChange(sample.code);
+  };
+
+  // Secret Double-Tap Gesture on Top Designation Card
+  const handleTopCardTap = () => {
+    const now = Date.now();
+    const timeDiff = now - lastTapRef.current;
+    if (timeDiff > 0 && timeDiff < 350) {
+      // Secret double-tap detected!
+      const newState = !isDevSamplesEnabled;
+      setIsDevSamplesEnabled(newState);
+      if (newState) {
+        localStorage.setItem("upc_anomaly_dev_mode", "true");
+      } else {
+        localStorage.removeItem("upc_anomaly_dev_mode");
+      }
+    }
+    lastTapRef.current = now;
   };
 
   const isMutedRef = useRef(isMuted);
@@ -225,13 +260,17 @@ export default function Home() {
         </button>
       </div>
 
-      {/* Designation Bar shifted to top */}
+      {/* Top Designation Bar (Double-Tap Secret Trigger) */}
       <div
         onPointerDown={preventCanvasPropagation}
         onTouchStart={preventCanvasPropagation}
         className="fixed top-4 left-1/2 -translate-x-1/2 z-40 w-11/12 max-w-lg pointer-events-none"
       >
-        <div className="bg-zinc-950/90 border border-zinc-800/90 backdrop-blur-xl rounded-2xl p-4 shadow-2xl text-center pointer-events-auto transition-all duration-300 hover:border-zinc-700">
+        <div
+          onClick={handleTopCardTap}
+          className="bg-zinc-950/90 border border-zinc-800/90 backdrop-blur-xl rounded-2xl p-4 shadow-2xl text-center pointer-events-auto transition-all duration-300 hover:border-zinc-700 cursor-pointer select-none"
+          title="Double-tap to toggle sample mode"
+        >
           <div className="flex items-center justify-center space-x-2 text-[10px] font-mono uppercase tracking-widest text-cyan-400 mb-1">
             <Globe className="w-3.5 h-3.5" />
             <span>
@@ -278,14 +317,17 @@ export default function Home() {
         </button>
 
         <div className="flex items-center space-x-2 w-full justify-center">
-          <button
-            onClick={handleCycleSample}
-            className="flex items-center space-x-1.5 px-3 py-2 rounded-xl bg-cyan-950/80 border border-cyan-800/80 backdrop-blur-md text-xs font-mono text-cyan-300 hover:text-white hover:bg-cyan-900/80 transition-colors cursor-pointer shadow-lg"
-            title="Switch through 10 sample UPC codes"
-          >
-            <Shuffle className="w-3.5 h-3.5 text-cyan-400 animate-spin-once" />
-            <span>SAMPLE #{sampleIndex + 1}/10</span>
-          </button>
+          {/* Sample Switcher: Only visible if secret URL param (?dev=true) or double-tap activated */}
+          {isDevSamplesEnabled && (
+            <button
+              onClick={handleCycleSample}
+              className="flex items-center space-x-1.5 px-3 py-2 rounded-xl bg-cyan-950/80 border border-cyan-800/80 backdrop-blur-md text-xs font-mono text-cyan-300 hover:text-white hover:bg-cyan-900/80 transition-colors cursor-pointer shadow-lg animate-in fade-in duration-200"
+              title="Switch through 10 sample UPC codes"
+            >
+              <Shuffle className="w-3.5 h-3.5 text-cyan-400 animate-spin-once" />
+              <span>SAMPLE #{sampleIndex + 1}/10</span>
+            </button>
+          )}
 
           <button
             onClick={() => setShowManualInput(!showManualInput)}
