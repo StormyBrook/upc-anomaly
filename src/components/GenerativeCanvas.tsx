@@ -15,12 +15,14 @@ interface GenerativeCanvasProps {
 interface Particle {
   x: number;
   y: number;
+  z: number;
   vx: number;
   vy: number;
   size: number;
   rotation: number;
   rotSpeed: number;
   color: ColorHSLA;
+  gradientColor?: ColorHSLA;
   isWireframe: boolean;
   pulsePhase: number;
   hasCollided: boolean;
@@ -29,6 +31,8 @@ interface Particle {
   distFromCenter: number;
   touchOffsetX: number;
   touchOffsetY: number;
+  phaseOffset: number;
+  flickerAlpha: number;
 }
 
 export const GenerativeCanvas: React.FC<GenerativeCanvasProps> = ({
@@ -50,6 +54,9 @@ export const GenerativeCanvas: React.FC<GenerativeCanvasProps> = ({
 
     const sketch = (p: p5) => {
       let particles: Particle[] = [];
+      let shockwaveRadius = -1;
+      let shockwaveCenter = { x: 0, y: 0 };
+
       const angleRad = (config.particles.flowAngleDegrees * Math.PI) / 180;
       const baseDx = Math.cos(angleRad) * config.particles.speed;
       const baseDy = Math.sin(angleRad) * config.particles.speed;
@@ -70,13 +77,11 @@ export const GenerativeCanvas: React.FC<GenerativeCanvasProps> = ({
 
       const anomalyShape = getUniformShape();
 
-      // Check if element directly under cursor/finger is the canvas element itself
       const isCursorOverCanvas = (): boolean => {
         if (typeof document === "undefined") return true;
         const elem = document.elementFromPoint(p.mouseX, p.mouseY);
         if (!elem) return true;
 
-        // If element is BUTTON, INPUT, SVG, or inside header/fixed overlay, NOT canvas
         const tag = elem.tagName.toUpperCase();
         if (
           tag === "BUTTON" ||
@@ -156,12 +161,14 @@ export const GenerativeCanvas: React.FC<GenerativeCanvasProps> = ({
         return {
           x: px,
           y: py,
+          z: p.random(0.2, 1.8),
           vx: baseDx,
           vy: baseDy,
           size: sz,
           rotation: p.random(p.TWO_PI),
           rotSpeed: p.random(-config.particles.spinSpeed, config.particles.spinSpeed),
           color: pickColor(),
+          gradientColor: config.colors.gradientSecondary,
           isWireframe: p.random(1) < config.particles.wireframeRatio,
           pulsePhase: p.random(p.TWO_PI),
           hasCollided: false,
@@ -170,17 +177,21 @@ export const GenerativeCanvas: React.FC<GenerativeCanvasProps> = ({
           distFromCenter: initialDist,
           touchOffsetX: 0,
           touchOffsetY: 0,
+          phaseOffset: p.random(p.TWO_PI),
+          flickerAlpha: 1.0,
         };
       };
 
       const drawShape = (pt: Particle, currentSize: number) => {
         const c = pt.color;
+        const alpha = c.a * pt.flickerAlpha;
+
         if (pt.isWireframe) {
           p.noFill();
-          p.stroke(c.h, c.s, c.l, c.a);
+          p.stroke(c.h, c.s, c.l, alpha);
           p.strokeWeight(1.5);
         } else {
-          p.fill(c.h, c.s, c.l, c.a);
+          p.fill(c.h, c.s, c.l, alpha);
           p.noStroke();
         }
 
@@ -229,6 +240,43 @@ export const GenerativeCanvas: React.FC<GenerativeCanvasProps> = ({
             );
             break;
           }
+          case "stars": {
+            const numPoints = 5;
+            const outerR = currentSize * 0.6;
+            const innerR = currentSize * 0.25;
+            p.beginShape();
+            for (let i = 0; i < numPoints * 2; i++) {
+              const r = i % 2 === 0 ? outerR : innerR;
+              const a = (i * Math.PI) / numPoints;
+              p.vertex(Math.cos(a) * r, Math.sin(a) * r);
+            }
+            p.endShape(p.CLOSE);
+            break;
+          }
+          case "crescents": {
+            const r = currentSize * 0.5;
+            p.arc(0, 0, r * 2, r * 2, p.QUARTER_PI, p.TWO_PI - p.QUARTER_PI, p.CHORD);
+            break;
+          }
+          case "concentricRings": {
+            p.ellipse(0, 0, currentSize, currentSize);
+            p.noFill();
+            p.stroke(c.h, c.s, c.l, alpha * 0.8);
+            p.strokeWeight(1.5);
+            p.ellipse(0, 0, currentSize * 0.65, currentSize * 0.65);
+            p.ellipse(0, 0, currentSize * 0.3, currentSize * 0.3);
+            break;
+          }
+          case "glyphRunes": {
+            p.stroke(c.h, c.s, c.l, alpha);
+            p.strokeWeight(2);
+            const half = currentSize * 0.45;
+            p.line(-half, -half, half, half);
+            p.line(-half, half, half, -half);
+            p.line(0, -half * 1.2, 0, half * 1.2);
+            p.line(-half * 1.2, 0, half * 1.2, 0);
+            break;
+          }
           default: {
             const h = currentSize * 0.866;
             p.triangle(0, -h * 0.66, -currentSize * 0.5, h * 0.33, currentSize * 0.5, h * 0.33);
@@ -274,7 +322,6 @@ export const GenerativeCanvas: React.FC<GenerativeCanvasProps> = ({
           p.blendMode(p.BLEND);
         }
 
-        // Strictly verify that the pointer is pressed AND targeting the canvas element directly
         const isPointerActive = (p.mouseIsPressed || p.touches.length > 0) && isCursorOverCanvas();
         const ptrX = p.mouseX;
         const ptrY = p.mouseY;
@@ -284,6 +331,18 @@ export const GenerativeCanvas: React.FC<GenerativeCanvasProps> = ({
 
         if (isPointerActive && onCanvasPan) {
           onCanvasPan(ptrX / p.width, ptrY / p.height);
+        }
+
+        // Expand shockwave pulse if active
+        if (shockwaveRadius >= 0) {
+          shockwaveRadius += 18;
+          p.noFill();
+          p.stroke(config.colors.accent.h, config.colors.accent.s, config.colors.accent.l, 0.4);
+          p.strokeWeight(3);
+          p.ellipse(shockwaveCenter.x, shockwaveCenter.y, shockwaveRadius * 2, shockwaveRadius * 2);
+          if (shockwaveRadius > Math.max(p.width, p.height) * 1.2) {
+            shockwaveRadius = -1;
+          }
         }
 
         for (let i = 0; i < particles.length; i++) {
@@ -334,6 +393,14 @@ export const GenerativeCanvas: React.FC<GenerativeCanvasProps> = ({
                   forceX += ((-dy / dist) * 2.5 + (dx / dist) * 0.5) * normFactor;
                   forceY += ((dx / dist) * 2.5 + (dy / dist) * 0.5) * normFactor;
                   break;
+                case "blackHole":
+                  forceX += (dx / dist) * normFactor * 6.5;
+                  forceY += (dy / dist) * normFactor * 6.5;
+                  break;
+                case "shockwave":
+                  forceX -= (dx / dist) * normFactor * 5.0;
+                  forceY -= (dy / dist) * normFactor * 5.0;
+                  break;
               }
             } else {
               pt.hasCollided = false;
@@ -345,6 +412,7 @@ export const GenerativeCanvas: React.FC<GenerativeCanvasProps> = ({
           pt.touchOffsetX = p.lerp(pt.touchOffsetX, forceX * 12, 0.1);
           pt.touchOffsetY = p.lerp(pt.touchOffsetY, forceY * 12, 0.1);
 
+          // Flow Pattern Computations
           if (
             config.flowPattern === "spiralVortex" ||
             config.flowPattern === "radialBurst" ||
@@ -373,6 +441,60 @@ export const GenerativeCanvas: React.FC<GenerativeCanvasProps> = ({
 
             pt.x = centerX + Math.cos(pt.radialAngle) * pt.distFromCenter + pt.touchOffsetX;
             pt.y = centerY + Math.sin(pt.radialAngle) * pt.distFromCenter + pt.touchOffsetY;
+          } else if (config.flowPattern === "sineLissajous") {
+            const rx = config.particles.lissajousRatioX || 3;
+            const ry = config.particles.lissajousRatioY || 4;
+            const t = p.frameCount * 0.015 * (config.particles.speed / 2) + pt.phaseOffset;
+            pt.x = centerX + Math.sin(t * rx) * (p.width * 0.42) + pt.touchOffsetX;
+            pt.y = centerY + Math.cos(t * ry) * (p.height * 0.38) + pt.touchOffsetY;
+          } else if (config.flowPattern === "orbitGravityWell") {
+            pt.radialAngle += 0.02 * config.particles.speed;
+            const w1X = centerX + Math.cos(p.frameCount * 0.01) * 160;
+            const w1Y = centerY + Math.sin(p.frameCount * 0.01) * 120;
+            pt.distFromCenter += (p.sin(p.frameCount * 0.02 + pt.phaseOffset) * 2.0);
+            pt.x = w1X + Math.cos(pt.radialAngle) * pt.distFromCenter + pt.touchOffsetX;
+            pt.y = w1Y + Math.sin(pt.radialAngle) * pt.distFromCenter + pt.touchOffsetY;
+          } else if (config.flowPattern === "helix3D") {
+            pt.x += baseDx;
+            pt.y += baseDy;
+            const t = p.frameCount * 0.04 + pt.phaseOffset;
+            pt.z = 1.0 + Math.sin(t) * 0.6;
+            pt.x += Math.cos(t) * 25 * pt.z;
+            pt.y += Math.sin(t) * 25 * pt.z;
+
+            const margin = 120;
+            if (
+              pt.x < -margin ||
+              pt.x > p.width + margin ||
+              pt.y < -margin ||
+              pt.y > p.height + margin
+            ) {
+              const newPos = getOffscreenPosition();
+              pt.x = newPos.x;
+              pt.y = newPos.y;
+            }
+          } else if (config.flowPattern === "quantumTeleport") {
+            pt.x += baseDx;
+            pt.y += baseDy;
+            if (p.random(1) < 0.012) {
+              pt.x += p.random(-140, 140);
+              pt.y += p.random(-140, 140);
+              pt.flickerAlpha = 0.2;
+            } else {
+              pt.flickerAlpha = p.lerp(pt.flickerAlpha, 1.0, 0.1);
+            }
+
+            const margin = 120;
+            if (
+              pt.x < -margin ||
+              pt.x > p.width + margin ||
+              pt.y < -margin ||
+              pt.y > p.height + margin
+            ) {
+              const newPos = getOffscreenPosition();
+              pt.x = newPos.x;
+              pt.y = newPos.y;
+            }
           } else {
             // Linear, Cardinal, Wave Flow
             let targetVx = baseDx;
@@ -391,7 +513,6 @@ export const GenerativeCanvas: React.FC<GenerativeCanvasProps> = ({
             pt.x += pt.vx;
             pt.y += pt.vy;
 
-            // Screen boundary wrap
             const margin = 120;
             if (
               pt.x < -margin ||
@@ -413,7 +534,8 @@ export const GenerativeCanvas: React.FC<GenerativeCanvasProps> = ({
           p.translate(pt.x, pt.y);
           p.rotate(pt.rotation);
 
-          const currentSize = pt.size * (1 + Math.sin(pt.pulsePhase) * 0.12);
+          const depthScale = pt.z || 1.0;
+          const currentSize = pt.size * depthScale * (1 + Math.sin(pt.pulsePhase) * 0.12);
           drawShape(pt, currentSize);
 
           p.pop();
@@ -430,6 +552,10 @@ export const GenerativeCanvas: React.FC<GenerativeCanvasProps> = ({
           p.mouseY >= 0 &&
           p.mouseY <= p.height
         ) {
+          if (config.touch.mode === "shockwave") {
+            shockwaveCenter = { x: p.mouseX, y: p.mouseY };
+            shockwaveRadius = 0;
+          }
           if (onCanvasTouch) {
             onCanvasTouch(p.mouseX / p.width, p.mouseY / p.height);
           }

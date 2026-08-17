@@ -5,7 +5,14 @@ export interface ColorHSLA {
   a: number; // 0 - 1
 }
 
-export type TouchMode = "repel" | "attract" | "vortex" | "ripple" | "orbit";
+export type TouchMode =
+  | "repel"
+  | "attract"
+  | "vortex"
+  | "ripple"
+  | "orbit"
+  | "blackHole"
+  | "shockwave";
 
 export type FlowPattern =
   | "diagonal"
@@ -13,7 +20,11 @@ export type FlowPattern =
   | "spiralVortex"
   | "radialBurst"
   | "waveFlow"
-  | "convergingCore";
+  | "convergingCore"
+  | "sineLissajous"
+  | "orbitGravityWell"
+  | "helix3D"
+  | "quantumTeleport";
 
 export type ShapeArchetype =
   | "triangles"
@@ -22,7 +33,15 @@ export type ShapeArchetype =
   | "rings"
   | "crosses"
   | "shards"
+  | "stars"
+  | "crescents"
+  | "concentricRings"
+  | "glyphRunes"
   | "mixed";
+
+export type SizePolarity = "microDust" | "monoliths" | "bimodal" | "standard";
+
+export type RarityTier = "COMMON" | "RARE" | "LEGENDARY";
 
 export type ColorThemeName =
   | "Neon Cyberpunk"
@@ -33,7 +52,14 @@ export type ColorThemeName =
   | "Synthwave Sunset"
   | "Void Prism"
   | "Vaporwave Pastel"
-  | "Supernova Core";
+  | "Supernova Core"
+  | "Aurora Borealis"
+  | "Deep Void Emerald"
+  | "Blood Moon"
+  | "Cyber Acid Gold"
+  | "Hyperdrive White"
+  | "Spectral Nebula"
+  | "Obsidian Pulse";
 
 export type ScaleType =
   | "minorPentatonic"
@@ -41,7 +67,10 @@ export type ScaleType =
   | "phrygian"
   | "harmonicMinor"
   | "wholeTone"
-  | "ambientMajor";
+  | "ambientMajor"
+  | "japaneseInSen"
+  | "celticMinor"
+  | "egyptianDorian";
 
 export interface ColorPalette {
   name: ColorThemeName;
@@ -49,6 +78,7 @@ export interface ColorPalette {
   primary: ColorHSLA;
   secondary: ColorHSLA;
   accent: ColorHSLA;
+  gradientSecondary?: ColorHSLA;
   blendMode: "source-over" | "screen" | "additive";
 }
 
@@ -57,17 +87,20 @@ export interface AnomalyConfig {
   hash: number;
   anomalyName: string;
   anomalyClass: string;
+  rarityTier: RarityTier;
 
-  // Visual Dynamics & Generative Expansions
+  // Visual Dynamics
   flowPattern: FlowPattern;
   shapeArchetype: ShapeArchetype;
   colorThemeName: ColorThemeName;
+  sizePolarity: SizePolarity;
 
   colors: {
     bgHSLA: ColorHSLA;
     primary: ColorHSLA;
     secondary: ColorHSLA;
     accent: ColorHSLA;
+    gradientSecondary?: ColorHSLA;
     blendMode: "source-over" | "screen" | "additive";
   };
 
@@ -84,6 +117,8 @@ export interface AnomalyConfig {
     wireframeRatio: number;
     waveFrequency?: number;
     waveAmplitude?: number;
+    lissajousRatioX?: number;
+    lissajousRatioY?: number;
   };
 
   // Interaction
@@ -99,8 +134,7 @@ export interface AnomalyConfig {
     rootFreq: number;
     scale: ScaleType;
     scaleNotes: number[];
-    osc1Type: OscillatorType;
-    osc2Type: OscillatorType;
+    oscType: OscillatorType;
     cutoffFreq: number;
     resonance: number;
     lfoRate: number;
@@ -151,6 +185,9 @@ const SCALE_INTERVALS: Record<ScaleType, number[]> = {
   harmonicMinor: [0, 2, 3, 5, 7, 8, 11, 12, 14, 15, 17, 19],
   wholeTone: [0, 2, 4, 6, 8, 10, 12, 14, 16, 18],
   ambientMajor: [0, 2, 4, 7, 9, 11, 12, 14, 16, 19],
+  japaneseInSen: [0, 1, 5, 7, 10, 12, 13, 17, 19, 22],
+  celticMinor: [0, 2, 3, 5, 7, 9, 10, 12, 14, 15, 17],
+  egyptianDorian: [0, 2, 3, 6, 7, 9, 10, 12, 14, 15, 18],
 };
 
 function midiToFreq(midi: number): number {
@@ -164,6 +201,7 @@ const COLOR_PALETTES: ColorPalette[] = [
     primary: { h: 180, s: 100, l: 55, a: 0.85 },
     secondary: { h: 320, s: 95, l: 60, a: 0.8 },
     accent: { h: 280, s: 100, l: 65, a: 0.9 },
+    gradientSecondary: { h: 220, s: 100, l: 60, a: 0.8 },
     blendMode: "screen",
   },
   {
@@ -172,6 +210,7 @@ const COLOR_PALETTES: ColorPalette[] = [
     primary: { h: 0, s: 100, l: 55, a: 0.9 },
     secondary: { h: 40, s: 100, l: 50, a: 0.85 },
     accent: { h: 60, s: 100, l: 65, a: 0.95 },
+    gradientSecondary: { h: 15, s: 100, l: 60, a: 0.85 },
     blendMode: "additive",
   },
   {
@@ -180,6 +219,7 @@ const COLOR_PALETTES: ColorPalette[] = [
     primary: { h: 160, s: 90, l: 50, a: 0.85 },
     secondary: { h: 190, s: 85, l: 55, a: 0.8 },
     accent: { h: 140, s: 95, l: 65, a: 0.9 },
+    gradientSecondary: { h: 175, s: 90, l: 60, a: 0.8 },
     blendMode: "screen",
   },
   {
@@ -188,6 +228,7 @@ const COLOR_PALETTES: ColorPalette[] = [
     primary: { h: 105, s: 100, l: 50, a: 0.9 },
     secondary: { h: 100, s: 80, l: 75, a: 0.75 },
     accent: { h: 115, s: 100, l: 85, a: 0.95 },
+    gradientSecondary: { h: 90, s: 100, l: 60, a: 0.8 },
     blendMode: "source-over",
   },
   {
@@ -196,6 +237,7 @@ const COLOR_PALETTES: ColorPalette[] = [
     primary: { h: 35, s: 100, l: 55, a: 0.85 },
     secondary: { h: 15, s: 95, l: 50, a: 0.8 },
     accent: { h: 50, s: 100, l: 65, a: 0.95 },
+    gradientSecondary: { h: 45, s: 100, l: 60, a: 0.85 },
     blendMode: "additive",
   },
   {
@@ -204,6 +246,7 @@ const COLOR_PALETTES: ColorPalette[] = [
     primary: { h: 330, s: 95, l: 60, a: 0.85 },
     secondary: { h: 25, s: 95, l: 55, a: 0.8 },
     accent: { h: 290, s: 90, l: 70, a: 0.9 },
+    gradientSecondary: { h: 350, s: 95, l: 65, a: 0.85 },
     blendMode: "screen",
   },
   {
@@ -212,6 +255,7 @@ const COLOR_PALETTES: ColorPalette[] = [
     primary: { h: 200, s: 100, l: 65, a: 0.85 },
     secondary: { h: 45, s: 100, l: 60, a: 0.85 },
     accent: { h: 300, s: 100, l: 70, a: 0.9 },
+    gradientSecondary: { h: 160, s: 100, l: 65, a: 0.85 },
     blendMode: "additive",
   },
   {
@@ -220,6 +264,7 @@ const COLOR_PALETTES: ColorPalette[] = [
     primary: { h: 175, s: 75, l: 65, a: 0.85 },
     secondary: { h: 300, s: 70, l: 70, a: 0.8 },
     accent: { h: 210, s: 80, l: 75, a: 0.9 },
+    gradientSecondary: { h: 280, s: 75, l: 70, a: 0.8 },
     blendMode: "screen",
   },
   {
@@ -228,7 +273,71 @@ const COLOR_PALETTES: ColorPalette[] = [
     primary: { h: 220, s: 100, l: 60, a: 0.85 },
     secondary: { h: 10, s: 100, l: 55, a: 0.85 },
     accent: { h: 50, s: 100, l: 75, a: 0.95 },
+    gradientSecondary: { h: 180, s: 100, l: 65, a: 0.85 },
     blendMode: "additive",
+  },
+  {
+    name: "Aurora Borealis",
+    bgHSLA: { h: 210, s: 85, l: 4, a: 1 },
+    primary: { h: 150, s: 100, l: 55, a: 0.9 },
+    secondary: { h: 185, s: 95, l: 60, a: 0.85 },
+    accent: { h: 270, s: 90, l: 70, a: 0.95 },
+    gradientSecondary: { h: 130, s: 100, l: 65, a: 0.85 },
+    blendMode: "screen",
+  },
+  {
+    name: "Deep Void Emerald",
+    bgHSLA: { h: 160, s: 90, l: 2, a: 1 },
+    primary: { h: 145, s: 100, l: 50, a: 0.9 },
+    secondary: { h: 170, s: 90, l: 60, a: 0.85 },
+    accent: { h: 80, s: 100, l: 70, a: 0.95 },
+    gradientSecondary: { h: 155, s: 100, l: 65, a: 0.85 },
+    blendMode: "screen",
+  },
+  {
+    name: "Blood Moon",
+    bgHSLA: { h: 350, s: 90, l: 3, a: 1 },
+    primary: { h: 355, s: 100, l: 50, a: 0.9 },
+    secondary: { h: 25, s: 100, l: 55, a: 0.85 },
+    accent: { h: 330, s: 90, l: 65, a: 0.95 },
+    gradientSecondary: { h: 10, s: 100, l: 60, a: 0.85 },
+    blendMode: "additive",
+  },
+  {
+    name: "Cyber Acid Gold",
+    bgHSLA: { h: 50, s: 80, l: 3, a: 1 },
+    primary: { h: 55, s: 100, l: 55, a: 0.9 },
+    secondary: { h: 85, s: 95, l: 60, a: 0.85 },
+    accent: { h: 30, s: 100, l: 65, a: 0.95 },
+    gradientSecondary: { h: 65, s: 100, l: 65, a: 0.85 },
+    blendMode: "additive",
+  },
+  {
+    name: "Hyperdrive White",
+    bgHSLA: { h: 220, s: 20, l: 4, a: 1 },
+    primary: { h: 0, s: 0, l: 95, a: 0.95 },
+    secondary: { h: 190, s: 100, l: 75, a: 0.85 },
+    accent: { h: 310, s: 100, l: 80, a: 0.95 },
+    gradientSecondary: { h: 210, s: 90, l: 85, a: 0.85 },
+    blendMode: "additive",
+  },
+  {
+    name: "Spectral Nebula",
+    bgHSLA: { h: 290, s: 80, l: 3, a: 1 },
+    primary: { h: 260, s: 100, l: 65, a: 0.9 },
+    secondary: { h: 340, s: 95, l: 65, a: 0.85 },
+    accent: { h: 170, s: 100, l: 70, a: 0.95 },
+    gradientSecondary: { h: 220, s: 100, l: 70, a: 0.85 },
+    blendMode: "screen",
+  },
+  {
+    name: "Obsidian Pulse",
+    bgHSLA: { h: 0, s: 0, l: 1, a: 1 },
+    primary: { h: 0, s: 0, l: 85, a: 0.9 },
+    secondary: { h: 210, s: 100, l: 55, a: 0.85 },
+    accent: { h: 0, s: 100, l: 60, a: 0.95 },
+    gradientSecondary: { h: 180, s: 100, l: 60, a: 0.85 },
+    blendMode: "source-over",
   },
 ];
 
@@ -243,6 +352,10 @@ const ANOMALY_CLASSES = [
   "Entropy Vortex",
   "Singularity Current",
   "Hyper-Dimensional Flow",
+  "Celestial Monolith",
+  "Lissajous Convergence",
+  "Helix Helix Warp",
+  "Orbit Gravity Matrix",
 ];
 
 const CODE_GREEK = ["ALPHA", "BETA", "GAMMA", "DELTA", "SIGMA", "OMEGA", "NEBULA", "ZERO", "NEXUS", "ZENITH"];
@@ -252,11 +365,21 @@ export function parseUPCToConfig(upcInput: string): AnomalyConfig {
   const numericHash = hashUPC(upc);
   const rng = new SeededRandom(numericHash);
 
+  // Rarity Tier Determination (5% LEGENDARY, 25% RARE, 70% COMMON)
+  const rarityVal = rng.range(0, 100);
+  let rarityTier: RarityTier = "COMMON";
+  if (rarityVal > 95) {
+    rarityTier = "LEGENDARY";
+  } else if (rarityVal > 70) {
+    rarityTier = "RARE";
+  }
+
   const greekIndex = numericHash % CODE_GREEK.length;
   const anomalyClass = ANOMALY_CLASSES[numericHash % ANOMALY_CLASSES.length];
   const shortCode = upc.slice(-4) || "0000";
   const defaultName = `${anomalyClass} [SIG-${CODE_GREEK[greekIndex]}-${shortCode}]`;
 
+  // Flow Pattern Assignment
   const flowPatterns: FlowPattern[] = [
     "diagonal",
     "cardinal",
@@ -264,9 +387,14 @@ export function parseUPCToConfig(upcInput: string): AnomalyConfig {
     "radialBurst",
     "waveFlow",
     "convergingCore",
+    "sineLissajous",
+    "orbitGravityWell",
+    "helix3D",
+    "quantumTeleport",
   ];
   const flowPattern = rng.pick(flowPatterns);
 
+  // Shape Archetype Assignment
   const shapeArchetypes: ShapeArchetype[] = [
     "triangles",
     "diamonds",
@@ -274,14 +402,49 @@ export function parseUPCToConfig(upcInput: string): AnomalyConfig {
     "rings",
     "crosses",
     "shards",
+    "stars",
+    "crescents",
+    "concentricRings",
+    "glyphRunes",
     "mixed",
   ];
   const shapeArchetype = rng.pick(shapeArchetypes);
 
+  // Size Polarity
+  const polarities: SizePolarity[] = ["microDust", "monoliths", "bimodal", "standard"];
+  const sizePolarity = rng.pick(polarities);
+
+  // Curated Color Palette Theme Assignment
   const palette = rng.pick(COLOR_PALETTES);
 
   const flowAngleDegrees = rng.range(0, 360);
 
+  // Particle count and sizing based on polarity & rarity
+  let count = rng.rangeInt(240, 480);
+  let minSize = rng.range(4, 9);
+  let maxSize = rng.range(18, 38);
+
+  if (sizePolarity === "microDust") {
+    count = rng.rangeInt(650, 1100);
+    minSize = 2;
+    maxSize = 7;
+  } else if (sizePolarity === "monoliths") {
+    count = rng.rangeInt(90, 180);
+    minSize = 28;
+    maxSize = 75;
+  } else if (sizePolarity === "bimodal") {
+    count = rng.rangeInt(350, 650);
+    minSize = 3;
+    maxSize = 52;
+  }
+
+  if (rarityTier === "LEGENDARY") {
+    count = Math.floor(count * 1.35);
+  }
+
+  const speed = rng.range(1.4, 5.0);
+
+  // Audio Scale
   const scales: ScaleType[] = [
     "minorPentatonic",
     "lydian",
@@ -289,22 +452,27 @@ export function parseUPCToConfig(upcInput: string): AnomalyConfig {
     "harmonicMinor",
     "wholeTone",
     "ambientMajor",
+    "japaneseInSen",
+    "celticMinor",
+    "egyptianDorian",
   ];
   const scaleType = rng.pick(scales);
-  const rootNote = rng.rangeInt(48, 64);
+  const rootNote = rng.rangeInt(46, 64);
   const scaleFrequencies = SCALE_INTERVALS[scaleType].map((interval) =>
     midiToFreq(rootNote + interval)
   );
 
-  const oscTypes: OscillatorType[] = ["sine", "triangle"];
+  const oscTypes: OscillatorType[] = ["sine", "triangle", "sawtooth", "square"];
+  const touchModes: TouchMode[] = [
+    "repel",
+    "attract",
+    "vortex",
+    "ripple",
+    "orbit",
+    "blackHole",
+    "shockwave",
+  ];
 
-  const touchModes: TouchMode[] = ["repel", "attract", "vortex", "ripple", "orbit"];
-
-  const speed = rng.range(1.4, 5.0);
-
-  // Directly correlate synth tempo (BPM) with stream speed:
-  // Speed 1.4 -> ~65 BPM (slower, serene)
-  // Speed 5.0 -> ~170 BPM (fast, energetic)
   const normalizedSpeedRatio = (speed - 1.4) / (5.0 - 1.4);
   const arpeggioBpm = Math.round(65 + normalizedSpeedRatio * 105);
 
@@ -313,20 +481,23 @@ export function parseUPCToConfig(upcInput: string): AnomalyConfig {
     hash: numericHash,
     anomalyName: defaultName,
     anomalyClass,
+    rarityTier,
     flowPattern,
     shapeArchetype,
     colorThemeName: palette.name,
+    sizePolarity,
     colors: {
       bgHSLA: palette.bgHSLA,
       primary: palette.primary,
       secondary: palette.secondary,
       accent: palette.accent,
+      gradientSecondary: palette.gradientSecondary,
       blendMode: palette.blendMode,
     },
     particles: {
-      count: rng.rangeInt(240, 520),
-      minSize: rng.range(4, 9),
-      maxSize: rng.range(18, 38),
+      count,
+      minSize,
+      maxSize,
       flowAngleDegrees,
       speed,
       gravity: {
@@ -339,6 +510,8 @@ export function parseUPCToConfig(upcInput: string): AnomalyConfig {
       wireframeRatio: rng.range(0.15, 0.5),
       waveFrequency: rng.range(0.02, 0.07),
       waveAmplitude: rng.range(2.0, 7.0),
+      lissajousRatioX: rng.rangeInt(2, 5),
+      lissajousRatioY: rng.rangeInt(3, 7),
     },
     touch: {
       mode: rng.pick(touchModes),
@@ -350,8 +523,7 @@ export function parseUPCToConfig(upcInput: string): AnomalyConfig {
       rootFreq: midiToFreq(rootNote),
       scale: scaleType,
       scaleNotes: scaleFrequencies,
-      osc1Type: rng.pick(oscTypes),
-      osc2Type: rng.pick(oscTypes),
+      oscType: rng.pick(oscTypes),
       cutoffFreq: rng.range(400, 3500),
       resonance: rng.range(1.0, 6.0),
       lfoRate: rng.range(0.2, 2.5),

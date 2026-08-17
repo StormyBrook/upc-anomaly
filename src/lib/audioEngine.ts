@@ -56,13 +56,11 @@ export class AudioEngine {
     this.startArpeggioScheduler();
   }
 
-  // Structured, Rhythmic Step Sequencer directly bound to stream speed/BPM
   private startArpeggioScheduler() {
     this.stopArpeggioScheduler();
     if (this.isMuted) return;
 
     const bpm = this.currentConfig?.audio.arpeggioBpm || 90;
-    // Step timing inversely scales with BPM (higher BPM = faster arpeggio step rate)
     const intervalMs = (60 / bpm) * 1000 * 0.5;
 
     this.sequenceStep = 0;
@@ -80,12 +78,18 @@ export class AudioEngine {
       this.sequenceStep++;
 
       const osc = this.ctx.createOscillator();
-      osc.type = "sine";
+      // Waveform timbre determined by UPC (sine, triangle, sawtooth, or square)
+      osc.type = this.currentConfig.audio.oscType || "sine";
       osc.frequency.setValueAtTime(freq, now);
 
       const gain = this.ctx.createGain();
       const isAccent = (this.sequenceStep % 4) === 1;
-      const vol = isAccent ? 0.22 : 0.16;
+      let vol = isAccent ? 0.22 : 0.16;
+
+      // Soften volume for sharper waveforms (sawtooth / square)
+      if (osc.type === "sawtooth" || osc.type === "square") {
+        vol *= 0.6;
+      }
 
       const noteDuration = Math.min((intervalMs / 1000) * 0.9, 0.65);
 
@@ -133,12 +137,16 @@ export class AudioEngine {
     const targetFreq = pitches[pitchIndex] || this.currentConfig.audio.rootFreq;
 
     const osc = this.ctx.createOscillator();
-    osc.type = "sine";
+    osc.type = this.currentConfig.audio.oscType || "sine";
     const pitchModifier = 1 + (15 / Math.max(particleSize, 4)) * 0.08;
     osc.frequency.setValueAtTime(targetFreq * pitchModifier, now);
 
     const gain = this.ctx.createGain();
-    const volume = 0.22 + Math.min(particleSize / 50, 0.2);
+    let volume = 0.22 + Math.min(particleSize / 50, 0.2);
+    if (osc.type === "sawtooth" || osc.type === "square") {
+      volume *= 0.6;
+    }
+
     gain.gain.setValueAtTime(volume, now);
     gain.gain.exponentialRampToValueAtTime(0.001, now + 0.9);
 

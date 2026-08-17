@@ -12,6 +12,7 @@ import {
   Download,
   Info,
   Sliders,
+  Sparkles,
   ChevronUp,
   ChevronDown,
   Globe,
@@ -20,6 +21,7 @@ import {
   Compass,
   Palette,
   Shuffle,
+  Zap,
 } from "lucide-react";
 
 const GenerativeCanvas = dynamic(
@@ -28,16 +30,16 @@ const GenerativeCanvas = dynamic(
 );
 
 const SAMPLE_UPCS = [
-  { code: "000000000010", label: "Neon Cyberpunk Anomaly" },      // Neon Cyberpunk
-  { code: "000000000011", label: "Thermal Infrared Anomaly" },    // Thermal Infrared
-  { code: "000000000007", label: "Bioluminescent Deep Anomaly" }, // Bioluminescent Deep
-  { code: "000000000006", label: "Acid Monochrome Anomaly" },     // Acid Monochrome
-  { code: "000000000005", label: "Solar Flare Anomaly" },          // Solar Flare
-  { code: "000000000004", label: "Synthwave Sunset Anomaly" },     // Synthwave Sunset
-  { code: "000000000003", label: "Void Prism Anomaly" },            // Void Prism
-  { code: "000000000002", label: "Vaporwave Pastel Anomaly" },     // Vaporwave Pastel
-  { code: "000000000000", label: "Supernova Core Anomaly" },      // Supernova Core
-  { code: "012000163173", label: "Pepsi Cola Classic" },          // Pepsi Cola Product Sample
+  { code: "000000000017", label: "Legendary Void Orbit" },       // LEGENDARY Void Prism
+  { code: "000000000000", label: "Lissajous Infrared Bimodal" }, // Thermal Infrared Lissajous
+  { code: "000000000002", label: "Spectral 3D Helix Dust" },    // 3D Helix Spectral Nebula
+  { code: "000000000003", label: "Solar Flare Crescent Wave" },  // Solar Flare
+  { code: "000000000004", label: "Blood Moon Star Stream" },    // Blood Moon Stars
+  { code: "000000000015", label: "Quantum Acid Monolith" },     // Quantum Teleport Monoliths
+  { code: "000000000020", label: "Cyber Gold Lissajous Shard" },// Cyber Acid Gold
+  { code: "000000000011", label: "Aurora Borealis Core" },       // Aurora Borealis
+  { code: "000000000021", label: "Legendary Acid Spark" },       // LEGENDARY Acid Monochrome MicroDust
+  { code: "012000163173", label: "Pepsi Cola Classic" },         // Real Product Barcode
 ];
 
 export default function Home() {
@@ -178,6 +180,15 @@ export default function Home() {
     e.stopPropagation();
   };
 
+  const getRarityBadgeStyle = (tier: string) => {
+    if (tier === "LEGENDARY") {
+      return "bg-amber-500/20 text-amber-300 border-amber-400/80 shadow-[0_0_12px_rgba(245,158,11,0.5)]";
+    } else if (tier === "RARE") {
+      return "bg-indigo-500/20 text-indigo-300 border-indigo-400/80 shadow-[0_0_10px_rgba(129,140,248,0.4)]";
+    }
+    return "bg-zinc-800/80 text-zinc-300 border-zinc-700/50";
+  };
+
   return (
     <main className="relative w-screen h-screen overflow-hidden bg-black font-sans">
       <GenerativeCanvas
@@ -214,7 +225,7 @@ export default function Home() {
         </button>
       </div>
 
-      {/* Designation Bar shifted to the very top */}
+      {/* Designation Bar shifted to top */}
       <div
         onPointerDown={preventCanvasPropagation}
         onTouchStart={preventCanvasPropagation}
@@ -232,9 +243,17 @@ export default function Home() {
             {displayName}
           </h2>
 
-          <div className="mt-2 flex flex-wrap items-center justify-center gap-1.5 font-mono text-[10px] text-zinc-400">
+          <div className="mt-2 flex flex-wrap items-center justify-center gap-1.5 font-mono text-[10px]">
             <span className="px-2.5 py-1 rounded-md bg-zinc-800/90 text-zinc-200 font-bold border border-zinc-700/50">
               UPC: {upc}
+            </span>
+            <span
+              className={`px-2.5 py-1 rounded-md font-bold border flex items-center gap-1 ${getRarityBadgeStyle(
+                config.rarityTier
+              )}`}
+            >
+              <Zap className="w-3 h-3" />
+              {config.rarityTier}
             </span>
           </div>
         </div>
@@ -347,16 +366,16 @@ export default function Home() {
               <div className="text-zinc-200 font-bold">{config.colorThemeName}</div>
             </div>
             <div className="bg-zinc-900/60 p-2.5 rounded-lg border border-zinc-800">
+              <div className="text-zinc-500 mb-0.5">SIZE POLARITY</div>
+              <div className="text-zinc-200 font-bold uppercase">{config.sizePolarity}</div>
+            </div>
+            <div className="bg-zinc-900/60 p-2.5 rounded-lg border border-zinc-800">
               <div className="text-zinc-500 mb-0.5">TOUCH FIELD</div>
               <div className="text-zinc-200 font-bold uppercase">{config.touch.mode}</div>
             </div>
             <div className="bg-zinc-900/60 p-2.5 rounded-lg border border-zinc-800">
-              <div className="text-zinc-500 mb-0.5">SONIC HARMONICS</div>
-              <div className="text-zinc-200 font-bold capitalize">{config.audio.scale}</div>
-            </div>
-            <div className="bg-zinc-900/60 p-2.5 rounded-lg border border-zinc-800">
-              <div className="text-zinc-500 mb-0.5">SYNTH TEMPO</div>
-              <div className="text-zinc-200 font-bold">{config.audio.arpeggioBpm} BPM</div>
+              <div className="text-zinc-500 mb-0.5">SYNTH TIMBRE</div>
+              <div className="text-zinc-200 font-bold uppercase">{config.audio.oscType}</div>
             </div>
           </div>
         </div>
